@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KITTY KONG — Revenge of the Nerd</title>
+<!-- Retro pixel font (falls back to monospace when offline) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    height: min(100vh, 112.5vw); /* preserve 640x720 aspect */
+    background: #000;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="640" height="720"></canvas>
+<script>
+'use strict';
+
+/* =====================================================================
+ *  KITTY KONG — Revenge of the Nerd
+ *  A single-file Donkey Kong–style arcade game.
+ *
+ *  - The Nerd (you) must climb the girders to rescue his Vintage Laptop.
+ *  - The giant Kitty Cat at the top bats Yarn Balls down the structure.
+ *  - Arrows: move / climb ladders.  Space: jump.  M: mute.  Enter: start.
+ * ===================================================================== */
+
+/* ============================ CONFIG ================================ */
+const W = 640, H = 720;            // internal resolution
+const STEP_MS = 1000 / 60;         // fixed 60 Hz simulation step
+const GRAV = 0.5;                  // gravity (px/frame^2)
+const PLAYER_SPEED = 2.3;          // walk speed
+const CLIMB_SPEED = 1.9;           // ladder climb speed
+const JUMP_VEL = -8.6;             // jump impulse
+const BALL_R = 9;                  // yarn ball radius
+const FONT = '"Press Start 2P", monospace';
+
+// NES-flavoured palette
+const C = {
+  girder: '#f83800', girderLite: '#ff8860', girderDark: '#6e1404',
+  ladder: '#3cbcfc',
+  skin: '#ffd5a8', hair: '#7a4a1f', shirt: '#ffffff', pants: '#2868f8',
+  shoe: '#6b3b14', frame: '#101010', lens: '#cfefff',
+  catFur: '#f8a060', catStripe: '#c8642a', cream: '#fff4d8',
+  pink: '#ff90b0', green: '#58f898',
+  text: '#ffffff', accent: '#f8d850',
+};
+
+// Yarn ball colours (fill / shading pairs), cycled per spawn
+const YARN_COLS = [
+  ['#ff7bd5', '#b03f93'], ['#f8d850', '#a08410'],
+  ['#3cbcfc', '#1565a8'], ['#58f898', '#1f9b4e'],
+];
+
+/* ======================= LEVEL GEOMETRY ============================= */
+// Girders are slightly tilted line segments with 12px thickness.
+// y1 is the top-surface height at x1, y2 at x2.  Index 0 is the prize
+// platform; index 1 is the Kitty Cat's girder; the last is the floor.
+const GIRDERS = [
+  { x1: 240, y1: 156, x2: 400, y2: 156 }, // 0: prize platform (flat)
+  { x1:  32, y1: 234, x2: 560, y2: 258 }, // 1: cat girder (down-right)
+  { x1:  80, y1: 358, x2: 608, y2: 338 }, // 2: (down-left)
+  { x1:  32, y1: 446, x2: 560, y2: 470 }, // 3: (down-right)
+  { x1:  80, y1: 574, x2: 608, y2: 554 }, // 4: (down-left)
+  { x1:   0, y1: 672, x2: 640, y2: 672 }, // 5: floor (flat)
+];
+
+// Ladders connect girder `upper` down to girder `lower`.  Broken
+// ladders can't be climbed by the Nerd, but yarn balls still use them.
+const LADDER_DEFS = [
+  { x: 296, upper: 0, lower: 1 },                 // up to the prize
+  { x: 344, upper: 0, lower: 1 },
+  { x: 260, upper: 1, lower: 2 },
+  { x: 535, upper: 1, lower: 2 },
+  { x: 420, upper: 1, lower: 2, broken: true },
+  { x: 120, upper: 2, lower: 3 },
+  { x: 440, upper: 2, lower: 3 },
+  { x: 300, upper: 2, lower: 3, broken: true },
+  { x: 200, upper: 3, lower: 4 },
+  { x: 500, upper: 3, lower: 4 },
+  { x: 120, upper: 4, lower: 5 },
+  { x: 540, upper: 4, lower: 5 },
+  { x: 330, upper: 4, lower: 5, broken: true },
+];
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// Top-surface y of a girder at horizontal position x (linear interp).
+function yAt(g, x) {
+  const t = (clamp(x, g.x1, g.x2) - g.x1) / (g.x2 - g.x1);
+  return g.y1 + (g.y2 - g.y1) * t;
+}
+
+// Which way does a girder slope?  +1 rolls right, -1 rolls left, 0 flat.
+const downhill = (g) => Math.sign(g.y2 - g.y1);
+
+// Resolve ladder endpoints against the girder surfaces once, up front.
+const LADDERS = LADDER_DEFS.map(d => ({
+  ...d,
+  yTop: yAt(GIRDERS[d.upper], d.x),
+  yBottom: yAt(GIRDERS[d.lower], d.x),
+}));
+
+// Girder index supporting a grounded actor at (x, feetY), or -1.
+function supportIndex(x, feetY) {
+  for (let i = 0; i < GIRDERS.length; i++) {
+    const g = GIRDERS[i];
+    if (x >= g.x1 && x <= g.x2 && Math.abs(yAt(g, x) - feetY) <= 6) return i;
+  }
+  return -1;
+}
+
+/* ============================ AUDIO ================================= */
+let actx = null, muted = false;
+
+function ensureAudio() {
+  if (!actx && typeof AudioContext !== 'undefined') {
+    try { actx = new AudioContext(); } catch (e) { /* no audio */ }
+  }
+  if (actx && actx.state === 'suspended') actx.resume();
+}
+
+// Tiny bleep synth: slides from f0 to f1 over dur seconds.
+function tone(f0, f1, dur, type = 'square', vol = 0.12, when = 0) {
+  if (!actx || muted) return;
+  const t = actx.currentTime + when;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.linearRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(actx.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+const sfxJump  = () => tone(330, 660, 0.12);
+const sfxScore = () => tone(880, 1320, 0.09, 'square', 0.1);
+const sfxSpawn = () => tone(150, 90, 0.1, 'triangle', 0.2);
+const sfxDeath = () => tone(440, 55, 0.6, 'sawtooth', 0.14);
+function sfxClear() {
+  tone(523, 523, 0.1, 'square', 0.12, 0.00);
+  tone(659, 659, 0.1, 'square', 0.12, 0.10);
+  tone(784, 784, 0.1, 'square', 0.12, 0.20);
+  tone(1047, 1047, 0.3, 'square', 0.12, 0.30);
+}
+
+/* ============================ INPUT ================================= */
+const keys = { ArrowLeft: false, ArrowRight: false, ArrowUp: false,
+               ArrowDown: false, jp: false /* jump just pressed */ };
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('keydown', (e) => {
+    ensureAudio();
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' ','Spacebar'].includes(e.key)) {
+      e.preventDefault();
+    }
+    if (e.key in keys) keys[e.key] = true;
+    if ((e.code === 'Space') && !e.repeat) keys.jp = true;
+    if (e.key === 'm' || e.key === 'M') muted = !muted;
+    if (e.key === 'Enter') {
+      if (game.state === 'title') startGame();
+      else if (game.state === 'over' && game.frame - game.stateFrame > 45) startGame();
+    }
+  });
+  document.addEventListener('keyup', (e) => { if (e.key in keys) keys[e.key] = false; });
+  window.addEventListener('blur', () => {
+    keys.ArrowLeft = keys.ArrowRight = keys.ArrowUp = keys.ArrowDown = keys.jp = false;
+  });
+}
+
+/* ========================== GAME STATE ============================== */
+const game = {
+  state: 'title',     // 'title' | 'play' | 'dying' | 'clear' | 'over'
+  stateFrame: 0,      // frame when state last changed
+  frame: 0,
+  score: 0,
+  hi: 0,
+  lives: 3,
+  level: 1,
+  timer: 0,           // generic state countdown
+};
+try { game.hi = parseInt(localStorage.getItem('kittykong-hi'), 10) || 0; } catch (e) {}
+
+const player = {
+  x: 60, y: 672, vy: 0, dir: 1,
+  onGround: true, climbing: null, gi: 5,
+  anim: 0, inv: 0, deadFrame: 0,
+};
+
+const cat = { x: 96, timer: 90 };
+let balls = [];
+let popups = [];   // floating "+100" style score texts
+
+// Difficulty curves — everything ramps with level.
+const ballSpeed     = () => Math.min(3.6, 1.7 + 0.25 * (game.level - 1));
+const spawnInterval = () => Math.max(55, 170 - 18 * (game.level - 1));
+const maxBalls      = () => Math.min(10, 5 + game.level);
+const ladderChance  = () => Math.min(0.5, 0.2 + 0.05 * game.level);
+
+function setState(s) { game.state = s; game.stateFrame = game.frame; }
+
+function addScore(n) {
+  game.score += n;
+  if (game.score > game.hi) game.hi = game.score;
+}
+
+function saveHi() {
+  try { localStorage.setItem('kittykong-hi', String(game.hi)); } catch (e) {}
+}
+
+function addPopup(x, y, txt) { popups.push({ x, y, txt, t: 50 }); }
+
+function resetPositions() {
+  player.x = 60; player.y = 672; player.vy = 0; player.dir = 1;
+  player.onGround = true; player.climbing = null; player.gi = 5;
+  player.anim = 0; player.deadFrame = 0;
+  balls = [];
+  popups = [];
+  cat.timer = 70;
+}
+
+function startGame() {
+  game.score = 0; game.lives = 3; game.level = 1;
+  resetPositions();
+  player.inv = 0;
+  setState('play');
+}
+
+/* ====================== UPDATE: THE NERD ============================ */
+function startClimb(L) {
+  player.climbing = L;
+  player.onGround = false;
+  player.vy = 0;
+}
+
+function ladderAt(x, pred) {
+  return LADDERS.find(l => Math.abs(x - l.x) < 12 && pred(l));
+}
+
+function updatePlayer() {
+  const p = player;
+  if (p.inv > 0) p.inv--;
+
+  /* --- on a ladder ----------------------------------------------- */
+  if (p.climbing) {
+    const L = p.climbing;
+    p.x += clamp(L.x - p.x, -3, 3); // snap onto the rails
+    const dv = (keys.ArrowDown ? 1 : 0) - (keys.ArrowUp ? 1 : 0);
+    if (dv !== 0) { p.y += dv * CLIMB_SPEED; p.anim++; }
+    if (p.y <= L.yTop) {            // stepped off at the top
+      p.y = L.yTop; p.climbing = null; p.onGround = true; p.gi = L.upper;
+    } else if (p.y >= L.yBottom) {  // stepped off at the bottom
+      p.y = L.yBottom; p.climbing = null; p.onGround = true; p.gi = L.lower;
+    }
+    keys.jp = false;                // no jumping off ladders
+    return;
+  }
+
+  /* --- walking / airborne ----------------------------------------- */
+  const mv = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+  if (mv !== 0) { p.x += mv * PLAYER_SPEED; p.dir = mv; p.anim++; }
+  p.x = clamp(p.x, 10, W - 10);
+
+  if (p.onGround) {
+    // Grab a ladder going up...
+    if (keys.ArrowUp) {
+      const L = ladderAt(p.x, l => !l.broken && Math.abs(p.y - l.yBottom) < 10);
+      if (L) { startClimb(L); return; }
+    }
+    // ...or step down onto one from above.
+    if (keys.ArrowDown) {
+      const L = ladderAt(p.x, l => !l.broken && Math.abs(p.y - l.yTop) < 8);
+      if (L) { startClimb(L); p.y = L.yTop + 4; return; }
+    }
+    if (keys.jp) {
+      keys.jp = false;
+      p.vy = JUMP_VEL; p.onGround = false;
+      sfxJump();
+    } else {
+      // Follow the (possibly sloped) girder, or fall off the end.
+      const gi = supportIndex(p.x, p.y);
+      if (gi >= 0) { p.gi = gi; p.y = yAt(GIRDERS[gi], p.x); }
+      else { p.onGround = false; p.vy = 0; }
+    }
+  }
+
+  if (!p.onGround) {
+    const prevY = p.y;
+    p.vy = Math.min(p.vy + GRAV, 9);
+    p.y += p.vy;
+    if (p.vy > 0) {
+      // Land on the first girder surface crossed this frame.
+      let best = -1, bestY = Infinity;
+      for (let i = 0; i < GIRDERS.length; i++) {
+        const g = GIRDERS[i];
+        if (p.x < g.x1 || p.x > g.x2) continue;
+        const s = yAt(g, p.x);
+        if (prevY <= s + 0.01 && p.y >= s && s < bestY) { best = i; bestY = s; }
+      }
+      if (best >= 0) { p.y = bestY; p.onGround = true; p.vy = 0; p.gi = best; }
+    }
+    if (p.y > H + 60) die(); // safety net — shouldn't normally happen
+  }
+  keys.jp = false;
+}
+
+/* ====================== UPDATE: YARN BALLS ========================== */
+function spawnBall() {
+  const ci = balls.length % YARN_COLS.length;
+  balls.push({
+    x: cat.x + 44, y: yAt(GIRDERS[1], cat.x + 44) - BALL_R,
+    r: BALL_R, state: 'roll', gi: 1, dir: downhill(GIRDERS[1]) || 1,
+    vx: 0, vy: 0, rot: 0, jumped: false, ladder: null,
+    col: YARN_COLS[ci][0], dark: YARN_COLS[ci][1],
+  });
+  sfxSpawn();
+}
+
+function updateBalls(collide) {
+  const sp = ballSpeed();
+  for (let i = balls.length - 1; i >= 0; i--) {
+    const b = balls[i];
+
+    if (b.state === 'roll') {
+      const prevX = b.x;
+      const g = GIRDERS[b.gi];
+      b.x += b.dir * sp;
+      b.rot += b.dir * sp * 0.12;
+      if (b.x < g.x1 - 2 || b.x > g.x2 + 2) {
+        // Rolled off the end of the girder — start falling.
+        b.state = 'fall'; b.vy = 0; b.vx = b.dir * sp * 0.35;
+      } else {
+        b.y = yAt(g, b.x) - b.r;
+        // Sometimes take a ladder down (broken ones included!).
+        for (const L of LADDERS) {
+          if (L.upper !== b.gi) continue;
+          if ((prevX - L.x) * (b.x - L.x) <= 0) {
+            if (Math.random() < ladderChance()) {
+              b.state = 'ladder'; b.ladder = L; b.x = L.x;
+            }
+            break;
+          }
+        }
+      }
+
+    } else if (b.state === 'fall') {
+      const prevBottom = b.y + b.r;
+      b.x += b.vx;
+      b.vy = Math.min(b.vy + GRAV, 8);
+      b.y += b.vy;
+      let best = -1, bestY = Infinity;
+      for (let gi = 0; gi < GIRDERS.length; gi++) {
+        const g = GIRDERS[gi];
+        if (b.x < g.x1 || b.x > g.x2) continue;
+        const s = yAt(g, b.x);
+        if (prevBottom <= s + 0.01 && b.y + b.r >= s && s < bestY) { best = gi; bestY = s; }
+      }
+      if (best >= 0) {
+        b.gi = best; b.y = bestY - b.r; b.state = 'roll';
+        const nd = downhill(GIRDERS[best]);
+        if (nd !== 0) b.dir = nd; // on flat girders keep rolling the same way
+      }
+
+    } else { // 'ladder' — sliding straight down a ladder
+      const L = b.ladder;
+      b.y += 2.4; b.rot += 0.1;
+      if (b.y >= L.yBottom - b.r) {
+        b.gi = L.lower; b.y = L.yBottom - b.r; b.state = 'roll'; b.ladder = null;
+        const nd = downhill(GIRDERS[b.gi]);
+        if (nd !== 0) b.dir = nd;
+      }
+    }
+
+    // Despawn once safely off screen.
+    if (b.x < -30 || b.x > W + 30 || b.y > H + 40) { balls.splice(i, 1); continue; }
+
+    if (!collide) continue;
+
+    // Award points for leaping over a ball (once per ball).
+    if (!b.jumped && !player.onGround && !player.climbing &&
+        Math.abs(b.x - player.x) < 14 && b.y > player.y && b.y - player.y < 70) {
+      b.jumped = true;
+      addScore(100);
+      addPopup(b.x, b.y - 16, '100');
+      sfxScore();
+    }
+
+    // Circle-vs-AABB hit test against the Nerd (slightly forgiving).
+    if (player.inv <= 0 && hitPlayer(b)) { die(); return; }
+  }
+}
+
+function hitPlayer(b) {
+  const nx = clamp(b.x, player.x - 6, player.x + 6);
+  const ny = clamp(b.y, player.y - 22, player.y);
+  const dx = b.x - nx, dy = b.y - ny, rr = b.r - 2;
+  return dx * dx + dy * dy < rr * rr;
+}
+
+/* ====================== UPDATE: CAT & FLOW ========================== */
+function updateCat() {
+  cat.timer--;
+  if (cat.timer <= 0) {
+    if (balls.length < maxBalls()) spawnBall();
+    cat.timer = spawnInterval();
+  }
+}
+
+function updatePopups() {
+  for (let i = popups.length - 1; i >= 0; i--) {
+    const f = popups[i];
+    f.t--; f.y -= 0.7;
+    if (f.t <= 0) popups.splice(i, 1);
+  }
+}
+
+function die() {
+  if (game.state !== 'play') return;
+  setState('dying');
+  game.timer = 120;
+  player.deadFrame = 0;
+  sfxDeath();
+}
+
+function levelClear() {
+  setState('clear');
+  game.timer = 170;
+  const bonus = 1000 + 250 * (game.level - 1);
+  addScore(bonus);
+  addPopup(320, 200, String(bonus));
+  sfxClear();
+}
+
+function step() {
+  game.frame++;
+
+  if (game.state === 'play') {
+    updatePlayer();
+    if (game.state !== 'play') return; // died falling off-screen
+    updateCat();
+    updateBalls(true);
+    updatePopups();
+    // Standing on the prize platform = rescued the laptop!
+    if (game.state === 'play' && player.onGround && player.gi === 0) levelClear();
+
+  } else if (game.state === 'dying') {
+    player.deadFrame++;
+    updateBalls(false);
+    updatePopups();
+    if (--game.timer <= 0) {
+      game.lives--;
+      if (game.lives > 0) {
+        resetPositions();
+        player.inv = 120; // brief mercy invincibility
+        setState('play');
+      } else {
+        saveHi();
+        setState('over');
+      }
+    }
+
+  } else if (game.state === 'clear') {
+    updatePopups();
+    if (--game.timer <= 0) {
+      game.level++;
+      saveHi();
+      resetPositions();
+      player.inv = 0;
+      setState('play');
+    }
+  }
+  // 'title' and 'over' transitions are handled by the keydown listener.
+}
+
+/* ============================ RENDER ================================ */
+const canvas = (typeof document !== 'undefined' && document.getElementById)
+  ? document.getElementById('game') : null;
+const ctx = canvas ? canvas.getContext('2d') : null;
+
+function drawGirders() {
+  for (const g of GIRDERS) {
+    for (let sx = g.x1; sx < g.x2; sx += 16) {
+      const w = Math.min(16, g.x2 - sx);
+      const y = Math.round(yAt(g, sx + w / 2));
+      ctx.fillStyle = C.girderDark; ctx.fillRect(sx, y, w, 12);
+      ctx.fillStyle = C.girder;     ctx.fillRect(sx, y, w, 3);
+      ctx.fillRect(sx, y + 9, w, 3);
+      ctx.fillStyle = C.girderLite; ctx.fillRect(sx + 6, y + 3, 4, 6);
+    }
+  }
+}
+
+function drawLadders() {
+  ctx.fillStyle = C.ladder;
+  for (const L of LADDERS) {
+    const segs = L.broken
+      ? [[L.yTop, L.yTop + 20], [L.yBottom - 16, L.yBottom]] // gap in the middle
+      : [[L.yTop, L.yBottom]];
+    for (const [a, b] of segs) {
+      ctx.fillRect(L.x - 8, a, 3, b - a);
+      ctx.fillRect(L.x + 5, a, 3, b - a);
+      for (let ry = a + 4; ry < b - 2; ry += 9) ctx.fillRect(L.x - 8, ry, 16, 2);
+    }
+  }
+}
+
+// The prize: a glorious Vintage Laptop on the top platform.
+function drawPrize() {
+  const px = 370, py = 156; // sits on the prize platform
+  ctx.fillStyle = '#8a98a8'; ctx.fillRect(px - 18, py - 6, 36, 6);   // base
+  ctx.fillStyle = '#48505c'; ctx.fillRect(px - 16, py - 5, 32, 2);   // keys
+  ctx.fillStyle = '#303840'; ctx.fillRect(px - 14, py - 32, 28, 26); // lid
+  ctx.fillStyle = '#062c12'; ctx.fillRect(px - 11, py - 29, 22, 20); // screen
+  ctx.fillStyle = '#7dffce';                                          // code!
+  ctx.fillRect(px - 9, py - 26, 12, 2);
+  ctx.fillRect(px - 9, py - 21, 16, 2);
+  ctx.fillRect(px - 9, py - 16, 9, 2);
+  // Twinkling sparkle so you know it's RARE.
+  if ((game.frame >> 4) & 1) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px + 18, py - 38, 3, 9);
+    ctx.fillRect(px + 15, py - 35, 9, 3);
+  }
+}
+
+// The giant mischievous Kitty Cat. `batting` = winding up a throw.
+function drawCat(cx, cy, frame, batting, scale = 1) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  const P = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); };
+  const wag = Math.sin(frame * 0.1) * 6;
+
+  // tail
+  P(-46, -46 + wag * 0.4, 12, 9, C.catFur);
+  P(-54, -56 + wag, 9, 12, C.catFur);
+  P(-54, -60 + wag, 9, 5, C.catStripe);
+  // body
+  P(-36, -44, 64, 44, C.catFur);
+  P(-40, -34, 72, 30, C.catFur);
+  // stripes
+  P(-30, -44, 8, 9, C.catStripe);
+  P(-14, -46, 8, 11, C.catStripe);
+  P(2, -44, 8, 9, C.catStripe);
+  // chest
+  P(8, -28, 20, 24, C.cream);
+  // head
+  P(-4, -78, 44, 36, C.catFur);
+  // ears + inner ears
+  P(-2, -88, 10, 12, C.catFur); P(28, -88, 10, 12, C.catFur);
+  P(0, -84, 6, 8, C.pink);      P(30, -84, 6, 8, C.pink);
+  // eyes: green with black slits
+  P(3, -70, 9, 8, C.green);  P(6, -69, 3, 6, '#000');
+  P(24, -70, 9, 8, C.green); P(27, -69, 3, 6, '#000');
+  // muzzle, nose, mouth
+  P(9, -58, 18, 12, C.cream);
+  P(15, -60, 6, 4, C.pink);
+  P(17, -52, 2, 4, '#803020');
+  // whiskers
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(9, -56);  ctx.lineTo(-4, -59);
+  ctx.moveTo(9, -53);  ctx.lineTo(-4, -52);
+  ctx.moveTo(27, -56); ctx.lineTo(40, -59);
+  ctx.moveTo(27, -53); ctx.lineTo(40, -52);
+  ctx.stroke();
+  // paws — one shoots out when batting a yarn ball
+  if (batting) {
+    P(24, -26, 16, 9, C.catFur);
+    P(38, -30, 11, 11, C.catFur);
+    ctx.strokeStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(46, -22, 14, -0.7, 0.7); ctx.stroke(); // swoosh
+  } else {
+    P(6, -10, 12, 10, C.catFur);
+  }
+  P(-26, -10, 12, 10, C.catFur);
+  ctx.restore();
+}
+
+// The Nerd, in all his pixel glory.  (x, y) = centre of his feet.
+// mode: 'stand' | 'walk' | 'jump' | 'climb' | 'dead'
+function drawNerd(x, y, facing, mode, anim) {
+  ctx.save();
+  if (mode === 'dead') {
+    // spin dramatically about the body centre
+    ctx.translate(x, y - 14);
+    ctx.rotate(Math.max(0, player.deadFrame - 20) * 0.3);
+    ctx.translate(0, 14);
+    ctx.scale(facing, 1);
+  } else {
+    ctx.translate(x, y);
+    ctx.scale(facing, 1);
+  }
+  const P = (px, py, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(px, py, w, h); };
+  const ph = (anim >> 3) & 1; // 2-frame animation phase
+
+  // hair + face
+  P(-7, -30, 14, 3, C.hair);
+  P(-7, -27, 2, 3, C.hair);
+  P(-6, -27, 12, 8, C.skin);
+  // glasses: dark frame, pale lenses, pupils
+  P(-7, -25, 14, 4, C.frame);
+  P(-6, -24, 5, 2, C.lens); P(1, -24, 5, 2, C.lens);
+  P(-3, -24, 2, 2, '#102030'); P(3, -24, 2, 2, '#102030');
+  // mouth
+  P(-1, -20, 3, 1, '#a05030');
+  // shirt
+  P(-6, -19, 12, 9, C.shirt);
+  // pocket protector with pens (the mark of a true professional)
+  P(2, -19, 1, 2, '#f83800');
+  P(4, -19, 1, 2, '#0058f8');
+  P(1, -17, 5, 4, '#c2d4dc');
+  // arms
+  if (mode === 'climb') {
+    P(-8, -30 + (ph ? 4 : 0), 2, 8, C.skin);
+    P(6, -30 + (ph ? 0 : 4), 2, 8, C.skin);
+  } else if (mode === 'jump') {
+    P(-8, -25, 2, 7, C.skin);
+    P(6, -25, 2, 7, C.skin);
+  } else {
+    P(-8, -18 + (mode === 'walk' && ph ? -2 : 0), 2, 7, C.skin);
+    P(6, -18 + (mode === 'walk' && !ph ? -2 : 0), 2, 7, C.skin);
+  }
+  // belt + pants
+  P(-6, -10, 12, 2, '#103080');
+  if (mode === 'walk' && ph) {
+    P(-7, -8, 5, 5, C.pants); P(2, -8, 5, 4, C.pants);
+    P(-8, -4, 6, 4, C.shoe);  P(2, -5, 6, 4, C.shoe);
+  } else if (mode === 'jump') {
+    P(-6, -8, 5, 4, C.pants); P(1, -8, 5, 4, C.pants);
+    P(-8, -5, 6, 4, C.shoe);  P(2, -5, 6, 4, C.shoe);
+  } else {
+    P(-6, -8, 5, 5, C.pants); P(1, -8, 5, 5, C.pants);
+    P(-7, -4, 6, 4, C.shoe);  P(1, -4, 6, 4, C.shoe);
+  }
+  // dead: X eyes over the lenses
+  if (mode === 'dead' && player.deadFrame > 8) {
+    P(-5, -25, 4, 1, '#f83800'); P(2, -25, 4, 1, '#f83800');
+  }
+  ctx.restore();
+}
+
+function drawYarn(b) {
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.rotate(b.rot);
+  ctx.fillStyle = b.col;
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2); ctx.fill();
+  // winding strands
+  ctx.strokeStyle = b.dark; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(0, 0, b.r - 2, -0.3, 1.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, b.r - 2, Math.PI - 0.3, Math.PI + 1.4); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -b.r * 0.45, b.r * 0.75, 0.5, Math.PI - 0.5); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, b.r * 0.45, b.r * 0.75, Math.PI + 0.5, -0.5); ctx.stroke();
+  // highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(-2, -b.r + 2, 3, 2);
+  ctx.restore();
+}
+
+// Tiny glasses icon for the lives display.
+function drawLifeIcon(x, y) {
+  ctx.fillStyle = C.shirt;
+  ctx.fillRect(x, y, 8, 6); ctx.fillRect(x + 10, y, 8, 6);
+  ctx.fillRect(x + 8, y + 2, 2, 2);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + 2, y + 2, 4, 2); ctx.fillRect(x + 12, y + 2, 4, 2);
+}
+
+function text(str, x, y, size, color, align = 'left') {
+  ctx.fillStyle = color;
+  ctx.font = size + 'px ' + FONT;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(str, x, y);
+}
+
+function drawHUD() {
+  text('SCORE', 16, 22, 10, C.accent);
+  text(String(game.score).padStart(6, '0'), 16, 40, 10, C.text);
+  text('HIGH SCORE', W / 2, 22, 10, C.accent, 'center');
+  text(String(game.hi).padStart(6, '0'), W / 2, 40, 10, C.text, 'center');
+  text('LV.' + String(game.level).padStart(2, '0'), W - 16, 22, 10, C.accent, 'right');
+  for (let i = 0; i < game.lives; i++) drawLifeIcon(W - 36 - i * 24, 32);
+}
+
+function drawPopups() {
+  for (const f of popups) text(f.txt, f.x, f.y, 8, C.text, 'center');
+}
+
+function drawScanlines() {
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);
+}
+
+function drawTitle() {
+  text('KITTY KONG', W / 2, 140, 36, C.pink, 'center');
+  text('REVENGE OF THE NERD', W / 2, 180, 13, C.ladder, 'center');
+  drawCat(W / 2 - 10, 420, game.frame, (game.frame % 160) < 30, 1.6);
+  // decorative yarn balls
+  const deco = [[180, 470, 0], [460, 440, 1], [430, 500, 2]];
+  for (const [dx, dy, ci] of deco) {
+    drawYarn({ x: dx, y: dy, r: 11, rot: game.frame * 0.03,
+               col: YARN_COLS[ci][0], dark: YARN_COLS[ci][1] });
+  }
+  drawNerd(W / 2 - 4, 545, 1, 'stand', 0);
+  text('HELP THE NERD RESCUE HIS', W / 2, 590, 9, C.text, 'center');
+  text('VINTAGE LAPTOP FROM THE KITTY!', W / 2, 608, 9, C.text, 'center');
+  text('ARROWS: MOVE + CLIMB    SPACE: JUMP', W / 2, 644, 9, '#9090a0', 'center');
+  if ((game.frame >> 5) & 1) text('PRESS ENTER TO START', W / 2, 686, 12, C.accent, 'center');
+  text('HIGH SCORE ' + String(game.hi).padStart(6, '0'), W / 2, 60, 10, C.text, 'center');
+}
+
+function render() {
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (game.state === 'title') {
+    drawTitle();
+    drawScanlines();
+    return;
+  }
+
+  drawGirders();
+  drawLadders();
+  drawPrize();
+  drawCat(cat.x, yAt(GIRDERS[1], cat.x), game.frame, cat.timer < 22);
+  for (const b of balls) drawYarn(b);
+
+  // pick the Nerd's pose
+  let mode = 'stand';
+  if (game.state === 'dying') mode = 'dead';
+  else if (player.climbing) mode = 'climb';
+  else if (!player.onGround) mode = 'jump';
+  else if (keys.ArrowLeft || keys.ArrowRight) mode = 'walk';
+  const blink = player.inv > 0 && ((game.frame >> 2) & 1); // respawn flicker
+  if (!blink) drawNerd(player.x, player.y, player.dir, mode, player.anim);
+
+  drawPopups();
+  drawHUD();
+
+  if (game.state === 'clear') {
+    // hearts between the Nerd and his laptop, aww
+    if ((game.frame >> 3) & 1) {
+      ctx.fillStyle = C.pink;
+      const hx = (player.x + 370) / 2, hy = 118;
+      ctx.fillRect(hx - 6, hy, 5, 5); ctx.fillRect(hx + 1, hy, 5, 5);
+      ctx.fillRect(hx - 5, hy + 4, 10, 5); ctx.fillRect(hx - 3, hy + 9, 6, 3);
+    }
+    text('LEVEL CLEAR!', W / 2, 330, 22, C.accent, 'center');
+    text('THE LAPTOP IS SAFE... FOR NOW', W / 2, 362, 9, C.text, 'center');
+  } else if (game.state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    text('GAME OVER', W / 2, 320, 30, '#f83800', 'center');
+    text('SCORE ' + String(game.score).padStart(6, '0'), W / 2, 370, 12, C.text, 'center');
+    if (game.score >= game.hi && game.score > 0) {
+      text('NEW HIGH SCORE!', W / 2, 400, 10, C.accent, 'center');
+    }
+    if ((game.frame >> 5) & 1) text('PRESS ENTER TO RETRY', W / 2, 450, 11, C.ladder, 'center');
+  }
+
+  drawScanlines();
+}
+
+/* ========================== MAIN LOOP =============================== */
+// Fixed-timestep accumulator: simulation always advances in 60 Hz steps
+// regardless of display refresh rate, so physics stay deterministic.
+let lastT = 0, acc = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  acc += Math.min(t - lastT, 100); // clamp huge tab-switch deltas
+  lastT = t;
+  while (acc >= STEP_MS) {
+    if (game.state === 'title' || game.state === 'over') game.frame++;
+    else step();
+    acc -= STEP_MS;
+  }
+  render();
+}
+if (typeof requestAnimationFrame === 'function') requestAnimationFrame(loop);
+
+// Debug/testing hooks (harmless in normal play).
+(typeof window !== 'undefined' ? window : globalThis).__NK =
+  { game, player, balls: () => balls, keys, step, render, startGame, GIRDERS, LADDERS };
+</script>
+</body>
+</html>
