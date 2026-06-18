@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  color       String
+  icon        String?
+  createdAt   DateTime @default(now())
+
+  idealBlocks IdealWeekBlock[]
+  auditBlocks TimeAuditBlock[]
+}
+
+model IdealWeekBlock {
+  id           String   @id @default(cuid())
+  dayOfWeek    Int
+  startTime    String
+  endTime      String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  activity     String
+  goalOutcome  String?
+  energyTarget Int?
+  color        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TimeAuditBlock {
+  id              String   @id @default(cuid())
+  date            DateTime
+  startTime       String
+  endTime         String
+  durationMinutes Int
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id])
+  activity        String
+  planned         Boolean  @default(true)
+  energyRating    Int?
+  qualityRating   Int?
+  revenueImpact   Int?
+  completed       Boolean  @default(true)
+  notes           String?
+  weekStart       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WeeklyScorecard {
+  id                    String   @id @default(cuid())
+  weekStart             DateTime @unique
+  sleepHours            Float?
+  fitnessHours          Float?
+  deepWorkHours         Float?
+  meetingHours          Float?
+  familyHours           Float?
+  taskCompletionPct     Float?
+  avgEnergy             Float?
+  delegatedHoursSaved   Float?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model SystemTracker {
+  id                  String   @id @default(cuid())
+  name                String
+  area                String
+  owner               String?
+  frequency           String
+  trigger             String?
+  stepsSummary        String?
+  sopLink             String?
+  toolAutomation      String?
+  estimatedTimeSaved  Float?
+  kpiLinked           String?
+  status              String   @default("Active")
+  nextImprovementDate DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model DelegationTask {
+  id                  String   @id @default(cuid())
+  task                String
+  frequency           String
+  strategicImpact     Int
+  requiresJudgment    Int
+  sopExists           Boolean  @default(false)
+  automationPotential Int
+  recommendation      String?
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model WeeklyReview {
+  id                    String   @id @default(cuid())
+  weekStart             DateTime @unique
+  whereTimeWent         String?
+  mostEnergy            String?
+  drainedEnergy         String?
+  shouldEliminate       String?
+  shouldAutomate        String?
+  shouldDelegate        String?
+  systemNeedsImprovement String?
+  nextWeekChanges       String?
+  overallRating         Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
