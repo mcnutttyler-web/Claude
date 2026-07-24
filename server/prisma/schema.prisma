@@ -1,0 +1,525 @@
+// RoutePilot data model.
+// SQLite is used for zero-dependency local/dev setup; the schema uses only
+// features (String columns, no native enums) that are portable to Postgres
+// for production deployment (see README "Known limitations").
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Organizations & Identity
+// ---------------------------------------------------------------------------
+
+// String-typed enums (SQLite has no native enum type). Valid values are
+// enforced in src/domain/enums.ts and validated at the API boundary with zod.
+
+model PlatformOrganization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model OperatorOrganization {
+  id                    String   @id @default(cuid())
+  name                  String
+  timezone              String   @default("America/New_York")
+  messagingPolicy       String     @default("{}")
+  checkpointPolicy      String     @default("{}")
+  riskPolicy            String     @default("{}")
+  incentivePolicy       String     @default("{}")
+  shipperVisibilityPolicy String   @default("{}")
+  createdAt             DateTime @default(now())
+
+  branches      OperatorBranch[]
+  users         User[]
+  drivers       Driver[]
+  pools         DriverPool[]
+  routes        Route[]
+  shipperLinks  OperatorShipperRelationship[]
+  incentivePrograms IncentiveProgram[]
+  riskRuleVersions RiskRuleVersion[]
+  auditEvents   AuditEvent[]
+}
+
+model OperatorBranch {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   OperatorOrganization @relation(fields: [operatorId], references: [id])
+  name       String
+  market     String
+  timezone   String   @default("America/New_York")
+  createdAt  DateTime @default(now())
+
+  routes Route[]
+  users  User[]
+}
+
+model ShipperOrganization {
+  id               String   @id @default(cuid())
+  name             String
+  timezone         String   @default("America/New_York")
+  industry         String?
+  pilotStatus      String   @default("none") // none | baseline | intervention
+  reportingSettings String    @default("{}")
+  createdAt        DateTime @default(now())
+
+  users        User[]
+  routes       Route[]
+  operatorLinks OperatorShipperRelationship[]
+  scorecards   ShipperScorecard[]
+}
+
+model OperatorShipperRelationship {
+  id               String   @id @default(cuid())
+  operatorId       String
+  operator         OperatorOrganization @relation(fields: [operatorId], references: [id])
+  shipperId        String
+  shipper          ShipperOrganization @relation(fields: [shipperId], references: [id])
+  contractReference String?
+  visibilitySettings String   @default("{}")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  @@unique([operatorId, shipperId])
+}
+
+// organizationType: PLATFORM | OPERATOR | SHIPPER
+// role: PLATFORM_ADMIN | OPERATOR_ADMIN | BRANCH_MANAGER | DISPATCHER | SHIPPER_ADMIN | SHIPPER_VIEWER
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String
+  organizationType String
+  operatorId       String?
+  operator         OperatorOrganization? @relation(fields: [operatorId], references: [id])
+  shipperId        String?
+  shipper          ShipperOrganization? @relation(fields: [shipperId], references: [id])
+  role             String
+  branchId         String?
+  branch           OperatorBranch? @relation(fields: [branchId], references: [id])
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Drivers
+// ---------------------------------------------------------------------------
+
+model Driver {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   OperatorOrganization @relation(fields: [operatorId], references: [id])
+  name       String
+  phone      String
+  timezone   String   @default("America/New_York")
+
+  vehicleTypes   String @default("[]")
+  equipment      String @default("[]")
+  serviceAreas   String @default("[]")
+  preferences    String @default("{}") // preferred weekdays, min comp, max mileage, etc.
+  credentialSummary String @default("{}")
+
+  // Messaging compliance
+  smsConsentStatus   String   @default("PENDING") // PENDING | OPTED_IN | OPTED_OUT
+  smsConsentAt       DateTime?
+  smsConsentSource   String?
+  smsConsentLanguageVersion String?
+  optOutAt           DateTime?
+  preferredContactWindow String @default("{}")
+  allowedChannels     String @default("[\"SMS\",\"SECURE_LINK\"]")
+  quietHours          String @default("{\"start\":\"21:00\",\"end\":\"07:00\"}")
+
+  activeStatus String  @default("ACTIVE") // ACTIVE | INACTIVE | DO_NOT_OFFER
+
+  createdAt DateTime @default(now())
+
+  poolMemberships DriverPoolMembership[]
+  credentials     DriverCredential[]
+  ownerships      RouteOwnership[]
+  assignments     Assignment[]
+  backupArrangements BackupArrangement[]
+  messages        Message[]
+  incentiveLedger IncentiveLedgerEntry[]
+}
+
+model DriverPool {
+  id          String   @id @default(cuid())
+  operatorId  String
+  operator    OperatorOrganization @relation(fields: [operatorId], references: [id])
+  name        String
+  branchScope String     @default("[]")
+  shipperScope String    @default("[]")
+  routeTypeScope String  @default("[]")
+  visibility  String   @default("OPERATOR_PRIVATE") // reserved for future cross-operator sharing
+  activeStatus Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  memberships DriverPoolMembership[]
+}
+
+model DriverPoolMembership {
+  id        String   @id @default(cuid())
+  poolId    String
+  pool      DriverPool @relation(fields: [poolId], references: [id])
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  status    String   @default("ACTIVE")
+  addedBy   String?
+  addedAt   DateTime @default(now())
+
+  @@unique([poolId, driverId])
+}
+
+model DriverCredential {
+  id               String   @id @default(cuid())
+  driverId         String
+  driver           Driver   @relation(fields: [driverId], references: [id])
+  type             String
+  status           String   @default("PENDING") // PENDING | VERIFIED | EXPIRED | REJECTED
+  issuedAt         DateTime?
+  expiresAt        DateTime?
+  verificationSource String?
+  verifiedBy       String?
+  createdAt        DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Routes & Occurrences
+// ---------------------------------------------------------------------------
+
+model Route {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   OperatorOrganization @relation(fields: [operatorId], references: [id])
+  shipperId  String?
+  shipper    ShipperOrganization? @relation(fields: [shipperId], references: [id])
+  branchId   String
+  branch     OperatorBranch @relation(fields: [branchId], references: [id])
+
+  routeCode  String
+  routeName  String
+  pickupArea String
+  deliveryArea String
+  scheduledStart String // HH:mm local
+  estimatedCompletion String // HH:mm local
+  estimatedMileage Float?
+  estimatedStopCount Int?
+  vehicleRequirements String @default("[]")
+  equipmentRequirements String @default("[]")
+  commodity  String?
+  criticality String @default("STANDARD") // STANDARD | IMPORTANT | CRITICAL | STAT
+  recurringWeekdays String @default("[]") // [0..6]
+  compensation String @default("{}") // operator/driver-only
+  materialNotes String?
+  customerQualifications String @default("[]")
+  requiredCredentials String @default("[]")
+  backupPolicy String @default("{}")
+  shipperVisibilitySettings String @default("{\"visible\":false}")
+
+  activeVersionNumber Int @default(1)
+  createdAt  DateTime @default(now())
+
+  detailVersions RouteDetailVersion[]
+  occurrences RouteOccurrence[]
+  ownerships  RouteOwnership[]
+
+  @@unique([operatorId, routeCode])
+}
+
+model RouteDetailVersion {
+  id        String   @id @default(cuid())
+  routeId   String
+  route     Route    @relation(fields: [routeId], references: [id])
+  version   Int
+  snapshot  String
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@unique([routeId, version])
+}
+
+model RouteOccurrence {
+  id            String   @id @default(cuid())
+  routeId       String
+  route         Route    @relation(fields: [routeId], references: [id])
+  serviceDate   String   // YYYY-MM-DD
+  scheduledStart DateTime
+  scheduledEnd  DateTime
+  status        String   @default("SCHEDULED") // SCHEDULED | COVERED | AT_RISK | COVERAGE_FAILURE | COMPLETED | CANCELED
+  recoveryLocked Boolean @default(false)
+  createdAt     DateTime @default(now())
+
+  assignments   Assignment[]
+  backupArrangements BackupArrangement[]
+  recoveryCases RecoveryCase[]
+  shipperCommitmentStatus ShipperCommitmentStatus?
+
+  @@unique([routeId, serviceDate])
+}
+
+model RouteOwnership {
+  id          String   @id @default(cuid())
+  routeId     String
+  route       Route    @relation(fields: [routeId], references: [id])
+  driverId    String
+  driver      Driver   @relation(fields: [driverId], references: [id])
+  weekdays    String     @default("[]")
+  startDate   String
+  endDate     String?
+  status      String   @default("PROPOSED") // PROPOSED | TRIAL | ACTIVE | TEMP_COVERED | PAUSED | ENDED
+  routeStreak Int      @default(0) // consecutive completed weeks
+  checkpointLevel String @default("FULL") // FULL | EARNED_DOWN
+  plannedTimeOff String   @default("[]") // [{start,end,reason}]
+  temporaryReplacementDriverId String?
+  temporaryReplacementReason String?
+  temporaryReplacementReturnDate String?
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Assignments, Checkpoints, Risk
+// ---------------------------------------------------------------------------
+
+model Assignment {
+  id                  String   @id @default(cuid())
+  routeOccurrenceId   String
+  routeOccurrence     RouteOccurrence @relation(fields: [routeOccurrenceId], references: [id])
+  driverId            String
+  driver              Driver   @relation(fields: [driverId], references: [id])
+  assignmentType      String   // PRIMARY | BACKUP | REPLACEMENT
+  status              String   @default("OFFERED") // OFFERED | ACCEPTED | DECLINED | ACK_REQUIRED | CONFIRMED_T24 | IN_PROGRESS | COMPLETED | CANCELED | EXPIRED
+  acceptedDetailVersion Int?
+  acceptedAt          DateTime?
+  acceptanceChannel    String?
+  responseTimeSeconds  Int?
+  t24Status           String   @default("PENDING") // PENDING | CONFIRMED | MISSED
+  checkpointStatus    String     @default("{}")
+  commitmentRiskTier  String   @default("GREEN") // GREEN | YELLOW | ORANGE | RED
+  supersededByAssignmentId String?
+  originalAssignmentId String?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+
+  checkpoints Checkpoint[]
+  riskTierEvents RiskTierEvent[]
+  cancellationEvents CancellationEvent[]
+  messages    Message[]
+  incentiveLedger IncentiveLedgerEntry[]
+}
+
+model Checkpoint {
+  id             String   @id @default(cuid())
+  assignmentId   String
+  assignment     Assignment @relation(fields: [assignmentId], references: [id])
+  checkpointType String   // FULL_DISCLOSURE | T24_RECONFIRM | EVENING_READINESS | PRE_DEPARTURE
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  response       String?  // YES | LATE | PROBLEM | CANNOT_COMPLETE | NO_RESPONSE
+  respondedAt    DateTime?
+  escalationStatus String @default("NONE") // NONE | ESCALATED | RESOLVED
+  createdAt      DateTime @default(now())
+}
+
+model RiskTierEvent {
+  id            String   @id @default(cuid())
+  assignmentId  String
+  assignment    Assignment @relation(fields: [assignmentId], references: [id])
+  previousTier  String
+  newTier       String
+  reasons       String     @default("[]")
+  recommendedAction String?
+  ruleVersion   String
+  timestamp     DateTime @default(now())
+}
+
+model RiskRuleVersion {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   OperatorOrganization @relation(fields: [operatorId], references: [id])
+  version    String
+  rules      String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  createdBy  String?
+}
+
+// ---------------------------------------------------------------------------
+// Backups & Recovery
+// ---------------------------------------------------------------------------
+
+model BackupArrangement {
+  id                String   @id @default(cuid())
+  routeOccurrenceId String
+  routeOccurrence   RouteOccurrence @relation(fields: [routeOccurrenceId], references: [id])
+  driverId          String
+  driver            Driver   @relation(fields: [driverId], references: [id])
+  arrangementType   String   // NAMED_UNPAID | PRIORITY_ACCESS | ACTIVATION_BONUS | OPERATOR_FUNDED_STANDBY | OPERATOR_DEFINED
+  availabilityWindow String    @default("{}")
+  activationDeadline DateTime?
+  incentive         String     @default("{}")
+  status            String   @default("OFFERED") // OFFERED | VIEWED | ACCEPTED | DECLINED | INTERESTED_FUTURE | UNAVAILABLE_TODAY | EXPIRED | ACTIVATED
+  sentAt            DateTime?
+  openedAt          DateTime?
+  respondedAt       DateTime?
+  createdAt         DateTime @default(now())
+
+  recoveryCases RecoveryCase[]
+}
+
+model RecoveryCase {
+  id                    String   @id @default(cuid())
+  routeOccurrenceId     String
+  routeOccurrence       RouteOccurrence @relation(fields: [routeOccurrenceId], references: [id])
+  originalAssignmentId  String
+  backupArrangementId   String?
+  backupArrangement     BackupArrangement? @relation(fields: [backupArrangementId], references: [id])
+  replacementAssignmentId String?
+  trigger               String   // CANCELLATION | MISSED_ESCALATION | BACKUP_DECLINED | OTHER
+  status                String   @default("OPEN") // OPEN | BACKUP_ACTIVATED | SOURCING | REPLACEMENT_SECURED | RESOLVED | UNRESOLVED
+  dispatcherOwnerId     String?
+  candidates            RecoveryCandidate[]
+  openedAt              DateTime @default(now())
+  resolvedAt            DateTime?
+  recoveryDurationSeconds Int?
+  recoveryMethod        String?  // NAMED_BACKUP | SOURCED_REPLACEMENT | ORIGINAL_RESOLVED | UNRESOLVED
+}
+
+model RecoveryCandidate {
+  id             String   @id @default(cuid())
+  recoveryCaseId String
+  recoveryCase   RecoveryCase @relation(fields: [recoveryCaseId], references: [id])
+  driverId       String
+  status         String   @default("NOT_CONTACTED")
+  matchFactors   String     @default("{}")
+  outreachAt     DateTime?
+  respondedAt    DateTime?
+  createdAt      DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Cancellations
+// ---------------------------------------------------------------------------
+
+model CancellationEvent {
+  id                String   @id @default(cuid())
+  assignmentId      String
+  assignment        Assignment @relation(fields: [assignmentId], references: [id])
+  classification    String   // AVOIDABLE | UNAVOIDABLE
+  category          String   // ECONOMIC | INFORMATIONAL | LOGISTICAL | BEHAVIORAL | UNAVOIDABLE_EVENT
+  structuredReason  String
+  freeTextNote      String?
+  eventTimestamp    DateTime @default(now())
+  minutesBeforeStart Int?
+  reportedBy        String?
+  selfReported      Boolean  @default(false)
+  backupAvailable   Boolean  @default(false)
+  backupActivated   Boolean  @default(false)
+  replacementNeeded Boolean  @default(false)
+  recoveryResult    String?
+  finalRouteOutcome String?  // ON_TIME | LATE | FAILED | REASSIGNED
+  shipperImpact     String?
+  customerVisibleExplanation String?
+}
+
+// ---------------------------------------------------------------------------
+// Incentives
+// ---------------------------------------------------------------------------
+
+model IncentiveProgram {
+  id         String   @id @default(cuid())
+  operatorId String
+  operator   OperatorOrganization @relation(fields: [operatorId], references: [id])
+  name       String
+  type       String   // STANDBY | ACTIVATION_BONUS | RETENTION | PRIORITY_ACCESS
+  rules      String     @default("{}")
+  amount     Float?
+  nonCashBenefit String?
+  activeStatus Boolean @default(true)
+  createdAt  DateTime @default(now())
+
+  ledgerEntries IncentiveLedgerEntry[]
+}
+
+model IncentiveLedgerEntry {
+  id           String   @id @default(cuid())
+  driverId     String
+  driver       Driver   @relation(fields: [driverId], references: [id])
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  programId    String
+  program      IncentiveProgram @relation(fields: [programId], references: [id])
+  status       String   @default("PENDING") // PENDING | EARNED | EXPORTED | VOID
+  amount       Float?
+  settlementExportStatus String @default("NOT_EXPORTED") // NOT_EXPORTED | EXPORTED
+  operatorSettlementReference String?
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
+
+model Message {
+  id           String   @id @default(cuid())
+  driverId     String
+  driver       Driver   @relation(fields: [driverId], references: [id])
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  template     String
+  channel      String   // SMS | SECURE_LINK
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  response     String?
+  isOptOutEvent Boolean @default(false)
+  secureToken  String?  @unique
+  secureTokenExpiresAt DateTime?
+  createdAt    DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Shipper visibility & reporting
+// ---------------------------------------------------------------------------
+
+model ShipperCommitmentStatus {
+  id                String   @id @default(cuid())
+  routeOccurrenceId String   @unique
+  routeOccurrence   RouteOccurrence @relation(fields: [routeOccurrenceId], references: [id])
+  visibleState      String   @default("OFFER_PENDING")
+  stateReason        String?
+  lastUpdated       DateTime @default(now())
+  nextMilestone     String?
+  operatorOwnerId   String?
+  shipperActionRequired Boolean @default(false)
+}
+
+model ShipperScorecard {
+  id             String   @id @default(cuid())
+  shipperId      String
+  shipper        ShipperOrganization @relation(fields: [shipperId], references: [id])
+  operatorId     String
+  reportingPeriodStart String
+  reportingPeriodEnd   String
+  metricsSnapshot String
+  generatedAt    DateTime @default(now())
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  operatorId String?
+  operator   OperatorOrganization? @relation(fields: [operatorId], references: [id])
+  entityType String
+  entityId   String
+  action     String
+  beforeState String?
+  afterState  String?
+  timestamp  DateTime @default(now())
+}

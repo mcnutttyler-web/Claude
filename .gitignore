@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.log
+
+# SQLite dev/test databases
+server/prisma/dev.db
+server/prisma/dev.db-journal
+server/prisma/test.db
+server/prisma/test.db-journal
+
+server/.env
+web/.env
+
+.DS_Store
