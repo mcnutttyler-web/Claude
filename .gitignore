@@ -13,3 +13,4 @@ server/.env
 web/.env
 
 .DS_Store
+*.tsbuildinfo
