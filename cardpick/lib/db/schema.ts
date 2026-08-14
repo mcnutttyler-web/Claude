@@ -230,3 +230,51 @@ export const settings = sqliteTable("settings", {
   value: text("value").notNull(),
   updatedAt: text("updated_at").notNull().default(sql`(current_timestamp)`),
 });
+
+// ---------------------------------------------------------------------------
+// Photo-based card recognition
+// ---------------------------------------------------------------------------
+
+/** Cached rows from an external card reference provider (pokemontcg.io).
+ * Cache-first so repeated scans of the same card don't re-hit the API. */
+export const referenceCard = sqliteTable("reference_card", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  source: text("source", { enum: ["POKEMONTCG"] }).notNull().default("POKEMONTCG"),
+  sourceId: text("source_id").notNull(),
+  name: text("name").notNull(),
+  setName: text("set_name").notNull(),
+  setCode: text("set_code"),
+  cardNumber: text("card_number").notNull().default(""),
+  printingCode: text("printing_code").notNull().default("NORMAL"),
+  smallImageUrl: text("small_image_url"),
+  largeImageUrl: text("large_image_url"),
+  tcgplayerProductId: text("tcgplayer_product_id"),
+  rawJson: text("raw_json").notNull(),
+  fetchedAt: text("fetched_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => ({
+  sourceIdUnique: uniqueIndex("reference_card_source_id_unique").on(t.source, t.sourceId),
+  nameIdx: index("reference_card_name_idx").on(t.name),
+  setNameIdx: index("reference_card_set_name_idx").on(t.setName),
+}));
+
+/** One row per uploaded photo, tracking it from upload through vision
+ * recognition through manual confirmation to the resulting inventory item. */
+export const cardScan = sqliteTable("card_scan", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  imagePath: text("image_path").notNull(),
+  capturedAt: text("captured_at").notNull().default(sql`(current_timestamp)`),
+  recognizedName: text("recognized_name"),
+  recognizedSetNameGuess: text("recognized_set_name_guess"),
+  recognizedCardNumberGuess: text("recognized_card_number_guess"),
+  recognizedPrintingGuess: text("recognized_printing_guess"),
+  confidence: text("confidence"),
+  visionRawJson: text("vision_raw_json"),
+  referenceCardId: integer("reference_card_id").references(() => referenceCard.id),
+  resolutionStatus: text("resolution_status", {
+    enum: ["PENDING", "RESOLVED", "REJECTED"],
+  }).notNull().default("PENDING"),
+  resultingInventoryItemId: integer("resulting_inventory_item_id").references(() => inventoryItem.id),
+  createdAt: text("created_at").notNull().default(sql`(current_timestamp)`),
+}, (t) => ({
+  statusIdx: index("card_scan_status_idx").on(t.resolutionStatus),
+}));

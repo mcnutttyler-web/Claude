@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,3 +46,9 @@ next-env.d.ts
 /data/*.db-wal
 /data/*.db-shm
 /backups/*.db
+
+# uploaded scan photos (runtime data, not source)
+/uploads/*.jpg
+/uploads/*.jpeg
+/uploads/*.png
+/uploads/*.webp

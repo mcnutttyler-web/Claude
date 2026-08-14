@@ -15,6 +15,13 @@
       "when": 1786240251359,
       "tag": "0001_parched_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786682645976,
+      "tag": "0002_chemical_risque",
+      "breakpoints": true
     }
   ]
 }

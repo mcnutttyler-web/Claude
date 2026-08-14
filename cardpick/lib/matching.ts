@@ -48,6 +48,16 @@ export function seedConditionSuffixes() {
   }
 }
 
+/** Normalize a free-text printing label (from a vision guess or manual
+ * entry, e.g. "Reverse Holofoil") into the same PRINTING_CODE convention
+ * used elsewhere (REVERSE_HOLOFOIL). Not backed by the condition_suffix
+ * lookup table since there's no condition prefix to strip here. */
+export function printingLabelToCode(label: string | null | undefined): string {
+  const trimmed = (label ?? "").trim();
+  if (trimmed === "" || trimmed.toLowerCase() === "normal") return "NORMAL";
+  return trimmed.toUpperCase().replace(/\s+/g, "_");
+}
+
 function printingCodeToLabel(code: string): string {
   return code
     .toLowerCase()

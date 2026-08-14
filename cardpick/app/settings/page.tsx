@@ -10,6 +10,7 @@ export default async function SettingsPage() {
   const snapshots = listSnapshots();
   const lateThresholdHours = getLateThresholdHours();
   const exportSettings = getTcgplayerExportSettings();
+  const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
   return (
     <div className="space-y-8">
@@ -53,6 +54,24 @@ export default async function SettingsPage() {
           <button className="rounded-md bg-neutral-900 px-3 py-2 text-white">Save headers</button>
         </form>
         <TcgplayerExportPanel initial={exportSettings} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Scan a Card (photo recognition)</h2>
+        <div className="max-w-xl space-y-2 rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-600">
+          <p>
+            Requires <code className="rounded bg-neutral-100 px-1">ANTHROPIC_API_KEY</code> in the server&apos;s environment
+            (<code className="rounded bg-neutral-100 px-1">.env.local</code>) — this is a server credential, not something typed
+            into this page. Each scan makes one paid vision API call.
+          </p>
+          <p>
+            <code className="rounded bg-neutral-100 px-1">POKEMONTCG_API_KEY</code> is optional but raises the reference-lookup
+            rate limit from 1,000/day to 20,000/day.
+          </p>
+          <p className={anthropicConfigured ? "text-emerald-700" : "text-amber-700"}>
+            {anthropicConfigured ? "ANTHROPIC_API_KEY is configured." : "ANTHROPIC_API_KEY is not set — /scan will show a configuration error until it is."}
+          </p>
+        </div>
       </section>
     </div>
   );
