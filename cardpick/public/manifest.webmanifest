@@ -1,0 +1,9 @@
+{
+  "name": "CardPick",
+  "short_name": "CardPick",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#1b2a41",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

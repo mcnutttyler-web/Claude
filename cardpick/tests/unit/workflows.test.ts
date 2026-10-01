@@ -42,6 +42,20 @@ describe('Audit', () => {
     await integrityOk();
   });
 
+  it('rapid concurrent taps never lose a count', async () => {
+    await seed([PIKACHU_CZ]);
+    await createLocation('B004', 'sorted');
+    await createLocation('C001', 'chaos');
+    const a = await startSession('B004', 'audit');
+    const p = await startSession('C001', 'putaway');
+    await Promise.all(Array.from({ length: 25 }, () => auditTap(a.id, '2001')));
+    await Promise.all(Array.from({ length: 25 }, () => putawayTap(p.id, '2001')));
+    expect((await db().sessions.get(a.id))!.lines[0]!.qty).toBe(25);
+    expect((await db().sessions.get(p.id))!.lines[0]!.qty).toBe(25);
+    expect((await view('2001')).physical).toBe(25);
+    await integrityOk();
+  });
+
   it('decrement on a mistap and resumes the same open session', async () => {
     await seed([PIKACHU_CZ]);
     await createLocation('B004', 'sorted');
@@ -136,8 +150,7 @@ describe('Multi-location card and picking', () => {
       ['B004', 3],
       ['C009', 1],
     ]);
-    let cur = b;
-    for (const t of b.tasks) cur = await confirmTask(b.id, t.id, t.qty);
+    for (const t of b.tasks) await confirmTask(b.id, t.id, t.qty);
     const sum = await completeBatch(b.id);
     expect(sum).toMatchObject({ picked: 4, needed: 4, ordersComplete: 1, shortTasks: 0, stops: 2 });
     expect((await view('2001')).locations).toEqual([{ location: 'C009', qty: 1, counted: true }]);

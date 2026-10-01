@@ -27,7 +27,14 @@ export async function openSessions(): Promise<AuditSession[]> {
   return (await db().sessions.toArray()).filter((s) => s.endedAt === null);
 }
 
-async function editLines(sessionId: string, itemId: string, delta: number, tap: boolean): Promise<AuditSession> {
+// Read-modify-write inside a rw transaction: Dexie serializes these, so rapid
+// double taps can never lose a count.
+function editLines(sessionId: string, itemId: string, delta: number, tap: boolean): Promise<AuditSession> {
+  const d = db();
+  return d.transaction('rw', d.sessions, () => editLinesTx(sessionId, itemId, delta, tap));
+}
+
+async function editLinesTx(sessionId: string, itemId: string, delta: number, tap: boolean): Promise<AuditSession> {
   const d = db();
   const s = await d.sessions.get(sessionId);
   if (!s || s.endedAt !== null) throw new InventoryError('Session is not open');
@@ -54,21 +61,25 @@ export function auditTap(sessionId: string, itemId: string, delta = 1): Promise<
 }
 
 /** Put Away: place one card into the session location immediately. */
-export async function putawayTap(sessionId: string, itemId: string): Promise<AuditSession> {
-  const s = await db().sessions.get(sessionId);
-  if (!s || s.mode !== 'putaway') throw new InventoryError('Not a put away session');
-  await putAway(itemId, s.location, 1, sessionId);
-  return editLines(sessionId, itemId, 1, true);
+export function putawayTap(sessionId: string, itemId: string): Promise<AuditSession> {
+  return inventoryTx(async () => {
+    const s = await db().sessions.get(sessionId);
+    if (!s || s.mode !== 'putaway' || s.endedAt !== null) throw new InventoryError('Not an open put away session');
+    await putAway(itemId, s.location, 1, sessionId);
+    return editLinesTx(sessionId, itemId, 1, true);
+  }, ['sessions']);
 }
 
 /** Put Away: take one back out (mistap). */
-export async function putawayUndo(sessionId: string, itemId: string): Promise<AuditSession> {
-  const s = await db().sessions.get(sessionId);
-  if (!s || s.mode !== 'putaway') throw new InventoryError('Not a put away session');
-  const line = s.lines.find((l) => l.itemId === itemId);
-  if (!line || line.qty <= 0) throw new InventoryError('Nothing to undo for this card');
-  await undoPutAway(itemId, s.location, 1, sessionId);
-  return editLines(sessionId, itemId, -1, false);
+export function putawayUndo(sessionId: string, itemId: string): Promise<AuditSession> {
+  return inventoryTx(async () => {
+    const s = await db().sessions.get(sessionId);
+    if (!s || s.mode !== 'putaway') throw new InventoryError('Not a put away session');
+    const line = s.lines.find((l) => l.itemId === itemId);
+    if (!line || line.qty <= 0) throw new InventoryError('Nothing to undo for this card');
+    await undoPutAway(itemId, s.location, 1, sessionId);
+    return editLinesTx(sessionId, itemId, -1, false);
+  }, ['sessions']);
 }
 
 export async function endPutaway(sessionId: string): Promise<AuditSession> {
