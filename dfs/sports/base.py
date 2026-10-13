@@ -210,6 +210,13 @@ class SportConfig:
     def score(self, stat_line: dict[str, float]) -> float:
         return float(self._scoring_mod.score(stat_line, self.scoring_cfg))
 
+    def expected_score(self, stat_means: dict[str, float], dispersion: dict | None = None) -> float:
+        """Expected points from mean stat projections (handles nonlinear bonuses/tiers if the plugin can)."""
+        fn = getattr(self._scoring_mod, "expected_score", None)
+        if fn is None:
+            return self.score(stat_means)
+        return float(fn(stat_means, self.scoring_cfg, dispersion))
+
     def roles(self, player_df: pd.DataFrame) -> pd.Series:
         if self._roles_mod is None:
             return player_df["position"].astype(str)

@@ -35,6 +35,44 @@ config/               app.yaml, contests/*.yaml, payouts/*.csv (templates — ca
 tests/                acceptance tests; fixtures/toysport is a 6-slot, $30k test sport
 ```
 
+## Projection engine (`core/projections/`)
+This builds the `projections.csv` that the lineup generator reads. It is top-down and market-anchored, and
+every tunable lives in `config/projections.yaml` as `{value, calibrated, source}`.
+Expect modest gains: the best public weekly sources differ by hundredths of a point of MAE.
+
+```bash
+# publish projections for a slate (sample inputs are fictional)
+python -m core.projections.publish --salaries data/sample/DKSalaries.csv \
+  --sources data/sample/proj_sources/sources.yaml --odds data/sample/proj_sources/odds.csv \
+  --injuries data/sample/proj_sources/injuries.csv --overrides data/sample/proj_sources/overrides.csv \
+  --history data/sample/proj_sources/history.csv --actuals data/sample/proj_sources/actuals.csv \
+  --out data/published
+# walk-forward backtest, FFA protocol (top-20 QB/TE, top-40 RB/WR, inactive excluded)
+python -m core.projections.backtest --history data/sample/proj_sources/history.csv \
+  --actuals data/sample/proj_sources/actuals.csv --out data/backtest
+```
+Outputs: `projections.parquet` holds the full §1 schema. Columns that later phases fill are present but empty.
+`projections.csv` is in the lineup-generator format. `run_log.json` records the seed, input hash, weights and the
+uncalibrated parameters. `team_check.csv` compares each team's projected offensive points with its implied total.
+
+| File | Role |
+|---|---|
+| `vegas.py` | consensus spread/total across books (Pinnacle/Circa weighted 2x), implied team total = total/2 − spread/2 |
+| `sources.py` | importers: points sources, stat-line sources (scored with DK rules), injuries → p_play, overrides, history |
+| `blend.py` | source weights within a component, then model/market/consensus component weights; confidence |
+| `backtest.py` | FFA-protocol pool, MAE/RMSE/bias/weekly-MAE CV/Spearman/calibration slope, walk-forward inverse-MAE |
+| `publish.py` | orchestration and outputs |
+
+Stat-line sources are scored with `expected_score`, which prices the 300/100/100 bonuses and the DST
+points-allowed tiers by probability. Scoring a mean stat line directly would mis-price those nonlinear pieces.
+
+Projection phases:
+- [x] **P1:** CSV importers, implied totals, consensus blend (inverse-MAE), overrides, publish, backtest harness.
+- [ ] P2: props model (power de-vig, alt-line CDFs, TD λ), Questionable mixtures, weather, DST, Monte Carlo
+  distributions, ownership v1.
+- [ ] P3: bottom-up nflverse model, learned vacated-usage table, learned/stacked blend weights, recalibration.
+- [ ] P4: ownership v2, kickers/Showdown, NBA adapter.
+
 ## Plugin contract
 Core reads sport specifics only through `SportConfig` (`sports/base.py`): `roster_slots` (with multi-eligibility,
 e.g. FLEX = RB/WR/TE), `salary_cap`, `min_teams`, `min_games`, `max_per_team`, `showdown` (captain multipliers,

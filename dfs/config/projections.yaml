@@ -1,0 +1,113 @@
+# Projection engine parameters. Every tunable is {value, calibrated, source}.
+# calibrated: false  => a starting default (shown with a "default — calibrate" badge); learn it in backtest.
+# Phase tags note when a parameter is first USED; later-phase values are recorded now so they live in one place.
+
+nfl:
+  positions: [QB, RB, WR, TE, DST, K]
+
+  validation:                               # FFA protocol
+    pool_size:   {value: {QB: 20, RB: 40, WR: 40, TE: 20}, calibrated: true,
+                  source: "FFA DFS accuracy study protocol (top-20 QB/TE, top-40 RB/WR by projection)"}
+    pool_by:     {value: consensus, calibrated: true,
+                  source: "design choice: one common player pool (ranked by simple-average consensus) so sources are compared on the same players"}
+    mae_bar:     {value: {QB: 6.2, RB: 5.2, WR: 4.95, TE: 3.9}, calibrated: true,
+                  source: "FFA 11-season DFS study, best-source weekly MAE"}
+    beat_consensus_by: {value: 0.01, calibrated: true, source: "build prompt §6: beat FFA Average/DFF by >=1% MAE over a full season"}
+    coverage_target: {value: 0.10, tolerance: 0.02, calibrated: true, source: "build prompt §3.8"}
+    calibration_slope_target: {value: [0.95, 1.05], calibrated: true, source: "build prompt §6"}
+
+  blend:                                    # P1
+    method:      {value: inverse_mae, calibrated: true,
+                  source: "FFA: weight = 1/MAE from all prior seasons, normalized within position; ~interchangeable with simple average"}
+    fallback:    {value: equal, calibrated: true, source: "simple average when no prior-season history"}
+    component_weights:
+      with_props:    {value: {model: 0.3, market: 0.5, consensus: 0.2}, calibrated: false, source: "build prompt §3.7 starting point"}
+      without_props: {value: {model: 0.6, market: 0.0, consensus: 0.4}, calibrated: false, source: "build prompt §3.7 starting point"}
+    rolling_update:                         # P3
+      window_weeks: {value: 8, calibrated: false, source: "build prompt §3.7"}
+      floor:        {value: 0.1, calibrated: false, source: "build prompt §3.7"}
+      max_step:     {value: 0.1, calibrated: false, source: "build prompt §3.7"}
+    disagreement:
+      mae_mult:     {value: 0.75, calibrated: false, source: "|model - market| > 1.5 x position MAE x 0.5"}
+      rank_gap:     {value: 15, calibrated: false, source: "build prompt §1"}
+
+  confidence:                               # P1 heuristic
+    source_count_k: {value: 1.0, calibrated: false, source: "coverage term n/(n+k)"}
+    agreement_scale: {value: 1.0, calibrated: false, source: "agreement term exp(-sd_sources / (scale x position MAE))"}
+
+  stat_conversion:                          # P1: scoring MEAN stat lines from stat-based sources
+    bonus_cv: {value: {pass_yds: 0.30, rush_yds: 0.55, rec_yds: 0.65}, calibrated: false,
+               source: "Normal approximation for P(300/100/100 bonus) from a mean stat line; replaced by sims in P2"}
+    pa_sigma: {value: 9.0, calibrated: false, source: "fantasytools.ai DST recipe: opp score ~ Normal(implied, 9)"}
+
+  value_line:
+    cash: {value: 3.0, calibrated: false, source: "x salary/1000"}
+    gpp:  {value: 4.0, calibrated: false, source: "x salary/1000"}
+
+  vegas:
+    book_weights: {value: {pinnacle: 2.0, circa: 2.0, default: 1.0}, calibrated: false,
+                   source: "Pinnacle/Circa treated as sharp anchors; consensus of books otherwise"}
+    league_avg_total: {value: 44.5, calibrated: false, source: "recent-season NFL average; refit each season"}
+
+  injuries:                                 # p_play by final-report designation
+    p_play: {value: {"": 0.98, NONE: 0.98, Q: 0.71, QUESTIONABLE: 0.71, D: 0.06, DOUBTFUL: 0.06, O: 0.0, OUT: 0.0,
+                     IR: 0.0, PUP: 0.0, SUSP: 0.0}, calibrated: false,
+             source: "Footballguys 2017-2023 skill players: Q 71% played, D 5.9%"}
+    questionable_by_practice: {value: {FULL: 0.90, LIMITED: 0.70, DNP: 0.40}, calibrated: false,
+                               source: "build prompt §4 starting values; learn from nflreadpy injuries 2017+"}
+    vacated_prior: {value: {same_role_next: 0.45, other_wr_te_by_tprr: 0.35, rb: 0.10, lost_to_pass_rate: 0.10},
+                    calibrated: false, source: "unproven starting prior (P3 learns the table)"}
+
+  props:                                    # P2
+    devig_method: {value: power, fallback: multiplicative, calibrated: false,
+                   source: "arXiv 2604.17194: fitted power beta 1.06-1.15 for all 5 books; no support for Shin"}
+
+  environment:                              # P3
+    plays_halflife: {value: 4, calibrated: false, source: "build prompt §3.1"}
+    plays_shrink_k: {value: 6, calibrated: false, source: "build prompt §3.1"}
+    proe_halflife:  {value: 5, calibrated: false, source: "build prompt §3.1"}
+    proe_shrink_k:  {value: 6, calibrated: false, source: "build prompt §3.1"}
+    proe_prior_season_weight_wk1_4: {value: 0.5, calibrated: false, source: "build prompt §3.1"}
+    team_td_model:  {value: binomial, n_drives: 11, calibrated: false,
+                     source: "one hobbyist backtest: team TDs underdispersed, Binomial(11) beat Poisson on CRPS"}
+
+  shares:                                   # P3
+    target_share_k_games: {value: 4, calibrated: false, source: "build prompt §3.3"}
+    tprr_k_routes:        {value: 150, calibrated: false, source: "derived from TPRR YoY retention 0.67 (Football Perspective)"}
+    carry_share_k_games:  {value: 4, calibrated: false, source: "build prompt §3.3"}
+    share_halflife_games: {value: 3, calibrated: false, source: "build prompt §3.3"}
+
+  efficiency:                               # P3
+    ypt_k_targets:   {value: 200, calibrated: false, source: "Y/T YoY retention 0.28 (Football Perspective)"}
+    ypc_k_carries:   {value: 250, calibrated: false, source: "build prompt §3.4"}
+    catch_k_targets: {value: 80, calibrated: false, source: "build prompt §3.4"}
+    rz_conv_k:       {value: 50, calibrated: false, source: "build prompt §3.4"}
+    opp_adj_shrink:  {value: 0.70, calibrated: false, source: "DvP incremental Spearman only 0.03-0.09"}
+    opp_adj_cap_efficiency: {value: 0.10, calibrated: false, source: "build prompt §3.4"}
+    opp_adj_cap_volume:     {value: 0.05, calibrated: false, source: "build prompt §3.4"}
+
+  weather:                                  # P2
+    wind_10_15: {value: {pass_yds_mult: 0.93, comp_pct_pts: -2.4, rush_att_mult: 1.03}, calibrated: false,
+                 source: "Claremont thesis regression (10 mph)"}
+    wind_15_20: {value: {pass_yds_mult: 0.90}, calibrated: false, source: "betting-media summaries"}
+    wind_20_plus: {value: {pass_yds_mult: 0.85, fg_range_yds: -7, fg_make_pts: -6}, calibrated: false, source: "Covers"}
+    rain_fg: {value: {at_40: -4, at_50: -6}, calibrated: false, source: "build prompt §3.1"}
+
+  dst:                                      # P2
+    opp_score_sigma: {value: 9.0, calibrated: false, source: "fantasytools.ai DST recipe"}
+    rate_shrink_games_k: {value: 3, calibrated: false, source: "fantasytools.ai: weight g/(g+3)"}
+    fumble_recovery_rate: {value: 0.5, calibrated: false, source: "build prompt §3.9"}
+
+  kicker:                                   # P4
+    skill_shrink_k_attempts: {value: 60, calibrated: false, source: "build prompt §3.10"}
+
+  ownership:                                # P2 (v1 heuristic)
+    roster_totals: {value: {QB: 1.0, RB: 2.0, WR: 3.0, TE: 1.0, DST: 1.0, FLEX: 1.0}, calibrated: true,
+                    source: "DK NFL classic roster: total 900%"}
+    showdown_totals: {value: {CPT: 1.0, FLEX: 5.0}, calibrated: true, source: "DK showdown roster"}
+    targets: {value: {mae_pp_ge10: 3.0, spearman: 0.8}, calibrated: false,
+              source: "author targets; no independent NFL benchmark exists"}
+
+api:
+  odds_quota_stop_frac: {value: 0.8, calibrated: true, source: "build prompt §7"}
+  cache_ttl_minutes: {value: 20, calibrated: false, source: "design default"}
