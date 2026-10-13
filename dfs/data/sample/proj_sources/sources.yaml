@@ -1,0 +1,13 @@
+sources:
+- name: ffa_avg
+  path: ffa_avg.csv
+  kind: points
+  component: consensus
+- name: dff
+  path: dff.csv
+  kind: points
+  component: consensus
+- name: sleeper
+  path: sleeper_stats.csv
+  kind: stats
+  component: consensus

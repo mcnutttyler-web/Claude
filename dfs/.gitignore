@@ -3,7 +3,5 @@ __pycache__/
 .pytest_cache/
 data/*
 !data/sample/
-data/sample/*
-!data/sample/*.csv
 *.mps
 *.lp
