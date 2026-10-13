@@ -1,0 +1,50 @@
+# DK NBA — Phase 6 STUB. Rules below are from the build spec; VERIFY on DK Rules & Scoring.
+name: nba
+display_name: NBA
+
+classic:
+  salary_cap: 50000
+  roster_slots:
+    - {name: PG,   eligible: [PG]}
+    - {name: SG,   eligible: [SG]}
+    - {name: SF,   eligible: [SF]}
+    - {name: PF,   eligible: [PF]}
+    - {name: C,    eligible: [C]}
+    - {name: G,    eligible: [PG, SG]}
+    - {name: F,    eligible: [SF, PF]}
+    - {name: UTIL, eligible: [PG, SG, SF, PF, C]}
+  min_teams: 2
+  min_games: 2
+  use_roster_position_tokens: true     # DK Roster Position column, e.g. "PG/SG/G/UTIL"
+  export_header: [PG, SG, SF, PF, C, G, F, UTIL]
+
+showdown:                                # verify
+  salary_cap: 50000
+  captain: {name: CPT, salary_mult: 1.5, points_mult: 1.5}
+  flex: {name: UTIL, count: 5}
+  min_teams: 2
+  min_per_team: 1
+  eligible_positions: [PG, SG, SF, PF, C]
+  export_header: [CPT, UTIL, UTIL, UTIL, UTIL, UTIL]
+
+status_exclude: [O, OUT, IR, NA]
+status_warn: [Q, GTD, D]
+
+lock_rule:
+  per_game: true
+  news_heavy: true
+  timezone: America/New_York
+  windows:
+    - {name: early, before_hour: 19}
+    - {name: main, before_hour: 21}
+    - {name: late}
+
+scoring:                                 # verify
+  stats: {pts: 1, fg3m: 0.5, reb: 1.25, ast: 1.5, stl: 2, blk: 2, tov: -0.5}
+  double_double: 1.5
+  triple_double: 3
+  dd_categories: [pts, reb, ast, stl, blk]
+
+distribution_defaults:                   # Phase 6: minutes-driven model
+  family: minutes_x_rate
+  allow_negative: false

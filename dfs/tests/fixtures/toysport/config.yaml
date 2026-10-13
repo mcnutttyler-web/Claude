@@ -1,0 +1,32 @@
+# A made-up sport used ONLY to prove core is sport-agnostic (acceptance test 16).
+name: toyball
+display_name: Toyball
+classic:
+  salary_cap: 30000
+  roster_slots:
+    - {name: A,    eligible: [A]}
+    - {name: A,    eligible: [A]}
+    - {name: B,    eligible: [B]}
+    - {name: C,    eligible: [C]}
+    - {name: AB,   eligible: [A, B]}
+    - {name: UTIL, eligible: [A, B, C]}
+  min_teams: 2
+  min_games: 2
+  max_per_team: 4
+  use_roster_position_tokens: false
+  export_header: [A, A, B, C, AB, UTIL]
+team_unit_positions: []
+status_exclude: [OUT]
+status_warn: [GTD]
+lock_rule:
+  per_game: true
+  news_heavy: false
+  timezone: America/New_York
+  windows: [{name: all}]
+scoring:
+  goal: 3
+  assist: 2
+  shot: 0.5
+distribution_defaults:
+  family: shifted_lognormal
+  cv_by_position: {A: 0.5, B: 0.5, C: 0.7}

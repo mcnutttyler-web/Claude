@@ -1,0 +1,118 @@
+# DraftKings NFL rules.  VERIFY AGAINST DK "Rules & Scoring" EVERY SEASON.
+# Last reviewed by hand: (fill in)  — values below follow the build spec.
+name: nfl
+display_name: NFL
+
+classic:
+  salary_cap: 50000
+  roster_slots:
+    - {name: QB,   eligible: [QB]}
+    - {name: RB,   eligible: [RB]}
+    - {name: RB,   eligible: [RB]}
+    - {name: WR,   eligible: [WR]}
+    - {name: WR,   eligible: [WR]}
+    - {name: WR,   eligible: [WR]}
+    - {name: TE,   eligible: [TE]}
+    - {name: FLEX, eligible: [RB, WR, TE]}
+    - {name: DST,  eligible: [DST]}
+  min_teams: 2
+  min_games: 2
+  max_per_team: null            # DK has no team max in NFL Classic (strategy cap lives in presets)
+  use_roster_position_tokens: true
+  export_header: [QB, RB, RB, WR, WR, WR, TE, FLEX, DST]
+
+showdown:
+  salary_cap: 50000
+  captain: {name: CPT, salary_mult: 1.5, points_mult: 1.5}
+  flex: {name: FLEX, count: 5}
+  min_teams: 2
+  min_per_team: 1               # at least one player from each team
+  eligible_positions: [QB, RB, WR, TE, K, DST]
+  export_header: [CPT, FLEX, FLEX, FLEX, FLEX, FLEX]
+
+# Positions that represent a team unit: matched by team abbreviation, not by name.
+team_unit_positions: [DST]
+
+team_aliases:          # projection-source abbreviation -> DK abbreviation
+  JAC: JAX
+  WSH: WAS
+  LA: LAR
+  STL: LAR
+  SD: LAC
+  OAK: LV
+  LVR: LV
+  ARZ: ARI
+  BLT: BAL
+  CLV: CLE
+  HST: HOU
+  GNB: GB
+  KAN: KC
+  NWE: NE
+  NOR: "NO"
+  SFO: SF
+  TAM: TB
+
+status_exclude: [O, OUT, D, DOUBTFUL, IR, PUP, SUSP, NA]
+status_warn: [Q, QUESTIONABLE, GTD]
+
+lock_rule:
+  per_game: true
+  news_heavy: false
+  timezone: America/New_York
+  windows:                      # assigned by ET kickoff hour (first match wins)
+    - {name: early, before_hour: 15}
+    - {name: late,  before_hour: 19}
+    - {name: prime}
+
+scoring:
+  offense:
+    pass_yds: 0.04
+    pass_td: 4
+    int: -1
+    rush_yds: 0.1
+    rush_td: 6
+    rec: 1
+    rec_yds: 0.1
+    rec_td: 6
+    fumble_lost: -1
+    two_pt: 2
+    ret_td: 6
+    fum_rec_td: 6
+  bonuses:                      # stat: [threshold, points]; threshold is inclusive (>=)
+    pass_yds: [300, 3]
+    rush_yds: [100, 3]
+    rec_yds: [100, 3]
+  dst:                          # UNVERIFIED event values — confirm on DK Rules & Scoring
+    sacks: 1
+    def_int: 2
+    fum_rec: 2
+    safety: 2
+    blocked_kick: 2
+    def_td: 6                   # INT/fumble/punt/kick/blocked-kick return TDs
+    two_pt_return: 2
+  dst_points_allowed:           # [max_points_allowed_inclusive, fantasy_points]; last row = everything above
+    - [0, 10]
+    - [6, 7]
+    - [13, 4]
+    - [20, 1]
+    - [27, 0]
+    - [34, -1]
+    - [null, -4]
+  kicker:                       # used only in Showdown; verify on DK
+    xp: 1
+    fg_0_39: 3
+    fg_40_49: 4
+    fg_50_plus: 5
+
+distribution_defaults:          # default — calibrate
+  family: shifted_lognormal     # alternative: gamma
+  cv_by_position: {QB: 0.35, RB: 0.50, WR: 0.60, TE: 0.65, DST: 0.80, K: 0.55}
+  min_score_by_position: {QB: -2, RB: -2, WR: -2, TE: -2, DST: -4, K: -1}
+  allow_negative: true
+  bust: {p: 0.03, max_frac_of_median: 0.25, positions: [QB, RB, WR, TE]}
+  boom_threshold_x_value: 3.0   # boom = >= 3x salary/1000
+  bust_threshold_x_value: 1.5
+
+entry_limits_note: >
+  Read max_entries from each contest. DK caps Salary Cap contests under $5 at 20 entries per
+  customer, except mini-MAX (150).

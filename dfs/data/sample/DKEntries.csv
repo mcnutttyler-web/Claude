@@ -1,0 +1,36 @@
+Entry ID,Contest Name,Contest ID,Entry Fee,QB,RB,RB,WR,WR,WR,TE,FLEX,DST,,Instructions
+4400000001,"NFL $10 Double Up, Sunday Main",180000001,$10,,,,,,,,,,,1. Locate the player you want to select in the list below
+4400000002,"NFL $10 Double Up, Sunday Main",180000001,$10,,,,,,,,,,,2. Copy the ID of your player (you can use the Name + ID column or the ID column)
+4400000003,"NFL $10 Double Up, Sunday Main",180000001,$10,,,,,,,,,,,3. Paste the ID into the roster position desired
+4400000004,NFL $20 20-Max GPP [Mid-Field],180000002,$20,,,,,,,,,,,4. You must include an ID for each player; you cannot use just the player's name
+4400000005,NFL $20 20-Max GPP [Mid-Field],180000002,$20,,,,,,,,,,,5. You can create up to 500 entries; contests with fewer entries are fine
+4400000006,NFL $20 20-Max GPP [Mid-Field],180000002,$20,,,,,,,,,,,
+4400000007,NFL $20 20-Max GPP [Mid-Field],180000002,$20,,,,,,,,,,,
+4400000008,NFL $20 20-Max GPP [Mid-Field],180000002,$20,,,,,,,,,,,
+,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,Position,Name + ID,Name,ID,Roster Position,Salary,Game Info,TeamAbbrev,AvgPointsPerGame
+,,,,,,,,,,,,,,QB,Alex Abbott (40100000),Alex Abbott,40100000,QB,7400,PHI@DAL 10/18/2026 01:00PM ET,PHI,21.0
+,,,,,,,,,,,,,,QB,Blake Lambert (40100001),Blake Lambert,40100001,QB,4400,PHI@DAL 10/18/2026 01:00PM ET,PHI,3.01
+,,,,,,,,,,,,,,RB,Cam Whitfield (40100002),Cam Whitfield,40100002,RB/FLEX,6100,PHI@DAL 10/18/2026 01:00PM ET,PHI,15.93
+,,,,,,,,,,,,,,RB,Dante Fontaine (40100003),Dante Fontaine,40100003,RB/FLEX,4700,PHI@DAL 10/18/2026 01:00PM ET,PHI,8.39
+,,,,,,,,,,,,,,RB,Eli Quarles (40100004),Eli Quarles,40100004,RB/FLEX,4200,PHI@DAL 10/18/2026 01:00PM ET,PHI,6.15
+,,,,,,,,,,,,,,WR,Felix Coyle (40100005),Felix Coyle,40100005,WR/FLEX,8500,PHI@DAL 10/18/2026 01:00PM ET,PHI,19.26
+,,,,,,,,,,,,,,WR,Gus Kowalski (40100006),Gus Kowalski,40100006,WR/FLEX,6100,PHI@DAL 10/18/2026 01:00PM ET,PHI,12.32
+,,,,,,,,,,,,,,WR,Hank Vasquez (40100007),Hank Vasquez,40100007,WR/FLEX,3800,PHI@DAL 10/18/2026 01:00PM ET,PHI,7.35
+,,,,,,,,,,,,,,WR,Isaac Ellery (40100008),Isaac Ellery,40100008,WR/FLEX,3400,PHI@DAL 10/18/2026 01:00PM ET,PHI,5.06
+,,,,,,,,,,,,,,TE,Jalen Pruitt (40100009),Jalen Pruitt,40100009,TE/FLEX,5200,PHI@DAL 10/18/2026 01:00PM ET,PHI,11.21
+,,,,,,,,,,,,,,TE,Kobe Brennan (40100010),Kobe Brennan,40100010,TE/FLEX,2800,PHI@DAL 10/18/2026 01:00PM ET,PHI,4.09
+,,,,,,,,,,,,,,DST,Eagles  (40100011),Eagles ,40100011,DST,3800,PHI@DAL 10/18/2026 01:00PM ET,PHI,8.93
+,,,,,,,,,,,,,,QB,Leo Jessup (40100012),Leo Jessup,40100012,QB,6500,PHI@DAL 10/18/2026 01:00PM ET,DAL,16.77
+,,,,,,,,,,,,,,QB,Marcus Underwood (40100013),Marcus Underwood,40100013,QB,4400,PHI@DAL 10/18/2026 01:00PM ET,DAL,2.98
+,,,,,,,,,,,,,,RB,Nico Dunn (40100014),Nico Dunn,40100014,RB/FLEX,8800,PHI@DAL 10/18/2026 01:00PM ET,DAL,19.94
+,,,,,,,,,,,,,,RB,Omar Oduya (40100015),Omar Oduya,40100015,RB/FLEX,5100,PHI@DAL 10/18/2026 01:00PM ET,DAL,9.45
+,,,,,,,,,,,,,,RB,Pierce Archer (40100016),Pierce Archer,40100016,RB/FLEX,4000,PHI@DAL 10/18/2026 01:00PM ET,DAL,5.22
+,,,,,,,,,,,,,,WR,Quinn Ingram (40100017),Quinn Ingram,40100017,WR/FLEX,7600,PHI@DAL 10/18/2026 01:00PM ET,DAL,19.11
+,,,,,,,,,,,,,,WR,Reggie Tillman (40100018),Reggie Tillman,40100018,WR/FLEX,6100,PHI@DAL 10/18/2026 01:00PM ET,DAL,13.41
+,,,,,,,,,,,,,,WR,Sol Castro (40100019),Sol Castro,40100019,WR/FLEX,4300,PHI@DAL 10/18/2026 01:00PM ET,DAL,9.2
+,,,,,,,,,,,,,,WR,Trey Nakamura (40100020),Trey Nakamura,40100020,WR/FLEX,3100,PHI@DAL 10/18/2026 01:00PM ET,DAL,3.82
+,,,,,,,,,,,,,,TE,Uriah Zeller (40100021),Uriah Zeller,40100021,TE/FLEX,4500,PHI@DAL 10/18/2026 01:00PM ET,DAL,9.16
+,,,,,,,,,,,,,,TE,Vince Holloway (40100022),Vince Holloway,40100022,TE/FLEX,3000,PHI@DAL 10/18/2026 01:00PM ET,DAL,3.43
+,,,,,,,,,,,,,,DST,Cowboys  (40100023),Cowboys ,40100023,DST,3400,PHI@DAL 10/18/2026 01:00PM ET,DAL,7.7
+,,,,,,,,,,,,,,QB,Wade Sandoval (40100024),Wade Sandoval,40100024,QB,7200,KC@BUF 10/18/2026 01:00PM ET,KC,18.3

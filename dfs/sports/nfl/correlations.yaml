@@ -1,0 +1,51 @@
+# NFL correlation prior — default — calibrate.
+# A synthesis of published values. Sources disagree; core/calibration.py refits these from history.
+# Published ranges (for reference, not used directly):
+#   QB–WR1        +0.31 to +0.53
+#   QB–RB1        +0.07 to +0.42   (contested)
+#   QB–opp DST    about -0.46
+# Role labels come from sports/nfl/roles.py. "WR" / "TE" / "RB" without a number matches any rank.
+# Lookup order: exact role pair, then position-generic pair. Pairs are symmetric.
+
+same_team:
+  QB|WR1: 0.40
+  QB|WR2: 0.32
+  QB|WR3: 0.22
+  QB|WR4: 0.12
+  QB|TE1: 0.30
+  QB|TE2: 0.12
+  QB|RB1: 0.10
+  QB|RB2: 0.05
+  WR|WR: -0.05
+  WR|TE: -0.05
+  RB1|RB2: -0.15
+  RB|RB: -0.10
+  RB1|DST: 0.10
+  QB|DST: -0.05
+  # Showdown only (applied when mode == showdown)
+  showdown:
+    DST|K: 0.25
+    K|QB: 0.15
+
+opponent:
+  QB|QB: 0.30
+  QB|WR1: 0.20
+  QB|WR2: 0.12
+  QB|WR3: 0.08
+  QB|TE1: 0.10
+  QB|RB1: 0.05
+  DST|QB: -0.40
+  DST|WR: -0.20
+  DST|RB1: -0.15
+  DST|RB: -0.10
+  DST|TE: -0.15
+
+game_factor:
+  # Latent "shootout" shock loading on every skill player in the game.
+  name: shootout
+  loading: 0.15
+  positions: [QB, RB, WR, TE]
+
+team_factor:
+  enabled: false
+  loading: 0.0

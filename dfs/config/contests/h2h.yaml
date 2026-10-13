@@ -1,0 +1,9 @@
+# Template — default — calibrate. Replace payouts with your contest's real table.
+name: H2H $10
+type: h2h
+field_size: 2
+entry_fee: 10.0
+max_entries: 1
+sport: nfl
+mode: classic
+payouts: config/payouts/h2h.csv

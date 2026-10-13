@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*
+!data/sample/
+data/sample/*
+!data/sample/*.csv
+*.mps
+*.lp

@@ -1,0 +1,39 @@
+# NFL presets — every value is a default — calibrate (tune with sims and tracked results).
+
+cash:
+  min_salary: 49500
+  rules:                         # passed to sports/nfl/rules.py:build_constraints
+    block_qb_vs_opp_dst: true
+    qb_stack_min: 0              # correlation is OFF as a forced rule in cash
+    bring_back_min: 0
+  by_contest:
+    h2h:       {chalk_pref: 1.0}
+    5050:      {chalk_pref: 1.0}
+    double_up: {chalk_pref: 1.0}
+    triple_up: {chalk_pref: 0.6, light_correlation: true}
+
+gpp:
+  single_entry:
+    label: "Single-entry / small field (<=1k)"
+    lambda_log_own: 0.5
+    cum_own_band: [1.00, 1.60]
+    product_own: null
+    rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, bring_back_min: 0,
+            max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
+    uniqueness_U: null
+  mid_20max:
+    label: "20-max, 5k-50k field"
+    lambda_log_own: 1.0
+    cum_own_band: [0.90, 1.40]
+    product_own: {min_players_under: 1, under_pct: 0.08}
+    rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, qb_stack_max: 2, bring_back_min: 0,
+            max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
+    uniqueness_U: 2
+  large_150max:
+    label: "150-max, 100k+ Milly-style"
+    lambda_log_own: 1.5
+    cum_own_band: [0.80, 1.20]
+    product_own: {min_players_under: 1, under_pct: 0.05, product_cap: true}
+    rules: {block_qb_vs_opp_dst: true, qb_stack_min: 2, bring_back_min: 1, bring_back_game_total_min: 48,
+            max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
+    uniqueness_U: 3

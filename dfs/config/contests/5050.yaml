@@ -1,0 +1,9 @@
+# Template — default — calibrate. Replace payouts with your contest's real table.
+name: 50/50 $10 (100)
+type: '5050'
+field_size: 100
+entry_fee: 10.0
+max_entries: 1
+sport: nfl
+mode: classic
+payouts: config/payouts/5050.csv

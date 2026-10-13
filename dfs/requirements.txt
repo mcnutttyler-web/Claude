@@ -1,0 +1,8 @@
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+# PuLP 3.x+/4.x no longer bundle the CBC binary; 2.9 ships CBC and needs no system install.
+pulp==2.9.0
+streamlit>=1.45
+PyYAML>=6.0
+pytest>=8.0

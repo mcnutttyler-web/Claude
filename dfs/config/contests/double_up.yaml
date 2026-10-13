@@ -1,0 +1,9 @@
+# Template — default — calibrate. Replace payouts with your contest's real table.
+name: Double-Up $10 (230)
+type: double_up
+field_size: 230
+entry_fee: 10.0
+max_entries: 1
+sport: nfl
+mode: classic
+payouts: config/payouts/double_up.csv

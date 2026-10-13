@@ -1,0 +1,9 @@
+# Template — default — calibrate. Replace payouts with your contest's real table.
+name: 150-max Milly-style GPP $20 (196,078)
+type: gpp
+field_size: 196078
+entry_fee: 20.0
+max_entries: 150
+sport: nfl
+mode: classic
+payouts: config/payouts/gpp_milly.csv

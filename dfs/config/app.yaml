@@ -1,0 +1,18 @@
+# App-level defaults. Every tunable here is a default — calibrate.
+data_dir: data
+default_sport: nfl
+seed: 20261013
+sims:
+  n: 10000          # configurable up to 50000
+  max: 50000
+  chunk: 2000
+  dtype: float32
+cash:
+  candidates: {top_k: 300, blends: [0.2, 0.4], blend_k: 100, fade_pivots: 15}
+gpp:
+  pool_size: 2000
+  pool_max: 10000
+name_match_threshold: 0.86
+bankroll:
+  warn_slate_frac: 0.10
+  warn_single_gpp_frac: 0.02
