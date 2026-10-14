@@ -23,15 +23,17 @@ PROJECTION_SYNONYMS: dict[str, list[str]] = {
     "name": ["name", "player", "player_name", "playername", "full_name"],
     "team": ["team", "teamabbrev", "tm", "team_abbrev"],
     "position": ["position", "pos"],
-    "median": ["median", "proj", "projection", "fpts", "points", "dk_points", "dkpts", "mean", "projected_points"],
+    "median": ["median", "proj", "projection", "fpts", "points", "dk_points", "dkpts", "mean", "projected_points",
+               "ppg_projection", "proj_pts", "projected_fpts", "dk_projection", "fantasy_points"],
     "floor": ["floor", "p10", "p25", "low"],
     "ceiling": ["ceiling", "ceil", "p85", "p90", "high"],
     "std_dev": ["std_dev", "stddev", "std", "sd", "stdev"],
-    "ownership": ["ownership", "own_gpp", "own", "proj_own", "projected_ownership", "own%", "pown", "pown%"],
+    "ownership": ["ownership", "own_gpp", "own", "proj_own", "projected_ownership", "own%", "pown", "pown%",
+                  "ownership_projection"],
     "cash_ownership": ["cash_ownership", "own_cash", "cash_own", "cash own"],
     "cpt_ownership": ["cpt_ownership", "cpt_own", "captain_ownership"],
     "optimal_pct": ["optimal_pct", "optimal", "opt%", "optimal%"],
-    "team_total": ["team_total", "implied_total", "itt", "implied"],
+    "team_total": ["team_total", "implied_total", "itt", "implied", "implied_team_score", "implied_team_total"],
     "spread": ["spread", "line"],
     "game_total": ["game_total", "total", "o/u", "ou", "over_under"],
     "depth_role": ["depth_role", "role", "depth"],
@@ -104,6 +106,18 @@ def read_dk_salaries(path_or_buf, sport: SportConfig) -> tuple[pd.DataFrame, str
     return df.reset_index(drop=True), mode
 
 
+def prepare_projection_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise common export quirks before column mapping:
+    split first/last name columns (DailyFantasyFuel cheat sheets; DST rows carry only first_name)."""
+    lower = {c.strip().lower(): c for c in df.columns}
+    if "name" not in lower and "player" not in lower and "first_name" in lower:
+        first = df[lower["first_name"]].fillna("").astype(str).str.strip()
+        last = df[lower["last_name"]].fillna("").astype(str).str.strip() if "last_name" in lower else ""
+        df = df.copy()
+        df.insert(0, "name", (first + " " + last).str.strip())
+    return df
+
+
 def auto_column_mapping(columns: list[str]) -> dict[str, str]:
     """Guess canonical -> source column mapping. The UI lets the user override it."""
     lower = {c.strip().lower(): c for c in columns}
@@ -137,7 +151,7 @@ def apply_column_mapping(df: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFr
 
 
 def read_projections(path_or_buf, mapping: dict[str, str] | None = None) -> pd.DataFrame:
-    raw = pd.read_csv(path_or_buf)
+    raw = prepare_projection_frame(pd.read_csv(path_or_buf))
     return apply_column_mapping(raw, mapping or auto_column_mapping(list(raw.columns)))
 
 

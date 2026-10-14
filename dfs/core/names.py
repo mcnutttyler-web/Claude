@@ -57,8 +57,13 @@ def match_players(
 
     dk_index, method = [], []
     used: set[int] = set()
+    slate_teams = set(sal["_t"])
     for _, r in out.iterrows():
         idx, how = -1, "unmatched"
+        if isinstance(r["_t"], str) and r["_t"] and r["_t"] not in slate_teams and r["_n"] not in overrides:
+            dk_index.append(-1)
+            method.append("team_not_on_slate")
+            continue
         if r["_n"] in overrides and overrides[r["_n"]] in by_id:
             idx, how = by_id[overrides[r["_n"]]], "override"
         elif r["_p"] in team_unit_positions or any(w in r["_n"].split() for w in ("dst", "defense", "d/st")):
@@ -101,8 +106,11 @@ def match_players(
 
 def unmatched_table(matched: pd.DataFrame, value_col: str = "median") -> pd.DataFrame:
     """Players projected above 0 that are not matched. The run is blocked until this is empty
-    (or the rows are explicitly excluded by the user)."""
+    (or the rows are explicitly excluded by the user). Rows whose team isn't on the DK slate at all (e.g. a
+    Thu-Mon projection file used for the Sunday Main slate) are not blocking — those players aren't playable."""
     m = matched[(matched["dk_index"] < 0) & (pd.to_numeric(matched[value_col], errors="coerce").fillna(0) > 0)]
+    if "match_method" in m.columns:
+        m = m[m["match_method"] != "team_not_on_slate"]
     if "excluded" in m.columns:
         m = m[~m["excluded"].fillna(False).astype(bool)]
     return m

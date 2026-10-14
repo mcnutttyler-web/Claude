@@ -23,7 +23,7 @@ from core.export import ExportError, assign_lineups_to_entries, read_entries, up
 from core.lineup import export_ids
 import numpy as np
 from core.ingest import (PROJECTION_SYNONYMS, REQUIRED, apply_column_mapping, auto_column_mapping, build_slate,
-                         read_dk_salaries)
+                         prepare_projection_frame, read_dk_salaries)
 from core.optimizer import InfeasibleError
 from sports.base import available_sports, load_sport
 
@@ -90,7 +90,7 @@ with tabs[1]:
         sample = "projections_showdown.csv" if ss["mode"] == "showdown" else "projections.csv"
         raw = file_or_sample("Upload projections.csv", sample, "proj")
         if raw:
-            src = pd.read_csv(io.BytesIO(raw))
+            src = prepare_projection_frame(pd.read_csv(io.BytesIO(raw)))
             st.markdown("**Column mapping** — required: " + ", ".join(REQUIRED))
             auto = auto_column_mapping(list(src.columns))
             opts = ["(none)"] + list(src.columns)
@@ -114,8 +114,13 @@ with tabs[1]:
             ss["proj_hash"] = hashlib.sha256(raw).hexdigest()[:12]
             for w in b.warnings:
                 st.warning(w)
+            off = int((b.matched["match_method"] == "team_not_on_slate").sum())
             st.markdown(f"Matched **{(b.matched['dk_index'] >= 0).sum()}** / {len(b.matched)} projection rows "
-                        f"→ {len(b.slate)} playable players.")
+                        f"→ {len(b.slate)} playable players."
+                        + (f" {off} rows ignored: their team isn't on this DK slate (other games)." if off else ""))
+            if (b.matched["dk_index"] >= 0).sum() == 0:
+                st.error("Nothing matched. Is the DKSalaries file for the same week/slate? (The bundled sample "
+                         "DKSalaries has fictional players — use your real DK export.)")
             if not b.ready:
                 st.error("Run blocked: map or exclude every unmatched player projected above 0.")
                 st.dataframe(b.unmatched[["name", "team", "position", "median"]], hide_index=True)
@@ -130,7 +135,11 @@ with tabs[1]:
                     if c2.button("Exclude", key=f"exc_{r['name']}"):
                         excluded.add(r["name"])
                         st.rerun()
-                if st.button("Apply mappings"):
+                c1, c2 = st.columns(2)
+                if c1.button("Apply mappings"):
+                    st.rerun()
+                if c2.button(f"Exclude all {len(b.unmatched)} unmatched"):
+                    excluded.update(b.unmatched["name"])
                     st.rerun()
             with st.expander("Match details"):
                 st.dataframe(b.matched[["name", "team", "position", "median", "match_method"]], hide_index=True)

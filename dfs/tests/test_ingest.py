@@ -65,3 +65,23 @@ def test_showdown_collapse(nfl):
     sal, mode = read_dk_salaries(io.StringIO(dk_salaries_csv(sd, showdown=True)), nfl)
     assert mode == "showdown" and len(sal) == len(sd)
     assert (sal["cpt_salary"] == (sal["salary"] * 1.5).astype(int)).all()
+
+
+def test_dff_cheatsheet_layout_and_other_games_ignored(nfl, players):
+    """first_name/last_name split, ppg_projection header, and a Thu-Mon file vs a Main-slate DK file."""
+    sal, mode = read_dk_salaries(io.StringIO(dk_salaries_csv(players)), nfl)
+    first = players["name"].str.strip().str.split(" ").str[0]
+    last = players["name"].str.strip().str.split(" ").str[1:].str.join(" ")
+    dst = players["position"] == "DST"
+    dff = pd.DataFrame({"first_name": first.where(~dst, players["name"].str.strip()),
+                        "last_name": last.where(~dst, None), "position": players["position"],
+                        "team": players["team"], "ppg_projection": players["median"], "injury_status": "",
+                        "implied_team_score": players["team_total"], "ownership_projection": None})
+    other = pd.DataFrame({"first_name": ["Thursday", "Monday"], "last_name": ["Guy", "Guy"],
+                          "position": ["WR", "RB"], "team": ["DEN", "LV"], "ppg_projection": [15.0, 12.0],
+                          "injury_status": "", "implied_team_score": 24, "ownership_projection": None})
+    buf = io.StringIO(pd.concat([dff, other]).to_csv(index=False))
+    b = build_slate(sal, mode, read_projections(buf), nfl)
+    assert b.ready                                              # other-game players don't block
+    assert (b.matched["match_method"] == "team_not_on_slate").sum() == 2
+    assert (b.matched["dk_index"] >= 0).sum() == len(players)
