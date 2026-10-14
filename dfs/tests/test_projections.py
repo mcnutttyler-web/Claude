@@ -170,11 +170,14 @@ def test_publish_end_to_end_feeds_lineup_generator(nfl, live, tmp_path):
     assert run.log["weight_method"] == "inverse_mae"
     assert t["mean"].notna().all()
     dst = t[t["position"] == "DST"]
-    assert (dst["n_sources"] == 2).all()                 # dff skips DST; ffa + sleeper stats cover it
+    # dff skips DST; ffa + sleeper stats cover it, plus the P2 DST model component
+    assert (dst["n_sources"] == 3).all()
+    assert all('"model"' in b for b in dst["source_breakdown"])
     # overrides applied and flagged
     ov = pd.read_csv(d / "overrides.csv", dtype=str)
     row = t[t["dk_id"] == ov.loc[0, "id"]].iloc[0]
-    assert row["mean"] == 25.0 and row["median"] == 25.0 and row["override_flag"]
+    assert row["mean"] == 25.0 and row["override_flag"]
+    assert row["p10"] < row["median"] < 25.0 < row["p90"]          # simulated around the overridden mean
     assert t["override_flag"].sum() == 1
     # injuries
     inj = pd.read_csv(d / "injuries.csv")
