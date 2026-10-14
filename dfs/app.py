@@ -14,7 +14,10 @@ import pandas as pd
 import streamlit as st
 import yaml
 
-from core.cash import objective_a
+from core.cash import CashResult, describe, objective_a
+from core.cash_sim import read_consensus, run_cash
+from core.field import fit_field
+from core.slate_sim import player_metrics, simulate_slate
 from core.contest import break_even_table, load_contest, template_paths
 from core.export import ExportError, assign_lineups_to_entries, read_entries, upload_csv, write_entries
 from core.ingest import (PROJECTION_SYNONYMS, REQUIRED, apply_column_mapping, auto_column_mapping, build_slate,
@@ -166,9 +169,80 @@ with tabs[2]:
             st.dataframe(res.table, hide_index=True)
             st.caption(f"Hard rules: {res.settings}")
 
+        st.divider()
+        st.subheader("Sim engine — max P(beat the cash line)")
+        st.caption("Runs slate sims (Sims tab) against a fitted cash field. Favored -> share chalk; underdog -> add "
+                   "variance. Contest payouts are templates unless you load your own.")
+        st.markdown(CALIBRATE)
+        tmpl = {p.stem: p for p in template_paths()}
+        cash_keys = [k for k in tmpl if load_contest(tmpl[k]).is_cash]
+        chosen_c = st.multiselect("Cash contests", cash_keys, default=cash_keys)
+        c1, c2, c3 = st.columns(3)
+        top_k = c1.number_input("Top-K candidates by median", 10, 800, 150, step=10)
+        sharp = c2.checkbox("H2H opponent is sharp")
+        do_split = c3.checkbox("Show 2-lineup split")
+        cons_up = st.file_uploader("consensus_cash.csv (optional)", type=["csv"], key="cons")
+        if st.button("Run sim cash engine", type="primary"):
+            if "sims" not in ss:
+                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), mode)
+            spec = sport.mode(mode)
+            cons = read_consensus(io.BytesIO(cons_up.getvalue()), b.slate, spec) if cons_up else None
+            own_col = "cash_ownership" if "cash_ownership" in b.slate and b.slate["cash_ownership"].notna().any() \
+                else "ownership"
+            if own_col not in b.slate:
+                st.error("Projections need an ownership column for the cash field model.")
+                st.stop()
+            with st.spinner("Fitting cash field and scoring candidates..."):
+                fld = fit_field(b.slate, sport, b.slate[own_col].fillna(0).to_numpy(), 3000, "cash", mode,
+                                consensus=cons)
+                sharp_fld = fit_field(b.slate, sport, b.slate[own_col].fillna(0).to_numpy(), 1500, "cash", mode,
+                                      consensus=cons, cfg={**sport.preset("field")["cash"],
+                                                           "consensus_p": sport.preset("field")["cash"].get(
+                                                               "sharp_consensus_p", 0.8)}) if (sharp and cons) else None
+                rep = run_cash(sport, b.slate, ss["sims"].scores, [load_contest(tmpl[k]) for k in chosen_c], fld,
+                               sharp_fld, cons, mode, cand_cfg={"top_k": int(top_k)}, h2h_sharp=sharp,
+                               split=do_split, min_salary=min_sal, locks=locks, excludes=excl)
+            ss["cash_report"] = rep
+            lus = []
+            for r in rep.results.values():
+                for lu in [r.recommended] + r.alternatives:
+                    if lu not in lus:
+                        lus.append(lu)
+            ss["cash"] = CashResult(lus, describe(lus, b.slate, spec), [], {"source": "sim engine"})
+            st.caption(f"Field ownership error {fld.info['max_own_error']:.3f}; candidates {rep.info['n_candidates']}")
+        rep = ss.get("cash_report")
+        if rep is not None:
+            for ctype, r in rep.results.items():
+                st.markdown(f"**{r.contest.name}** — break-even {r.contest.cash_rate_needed:.1%}, "
+                            f"mean cash line {r.line.mean():.1f}")
+                st.dataframe(r.table, hide_index=True)
+                cols = st.columns(3)
+                if len(r.fade):
+                    cols[0].markdown("Fade risk"); cols[0].dataframe(r.fade, hide_index=True)
+                if len(r.free_squares):
+                    cols[1].markdown("Free squares"); cols[1].dataframe(r.free_squares, hide_index=True)
+                if len(r.vs_consensus):
+                    cols[2].markdown("vs consensus"); cols[2].dataframe(r.vs_consensus, hide_index=True)
+            if rep.split is not None:
+                st.markdown("**One lineup vs split**"); st.dataframe(rep.split, hide_index=True)
+
 # ------------------------------------------------------- later-phase tabs
+with tabs[4]:
+    st.subheader("Slate simulations")
+    st.markdown(f"Gaussian copula over the role-pair correlation prior {CALIBRATE}")
+    b = ss.get("build")
+    if b is None or not b.ready:
+        st.info("Load and fully match projections first.")
+    else:
+        n = st.select_slider("Sims", [2000, 5000, 10000, 20000, 50000], value=int(APP_CFG["sims"]["n"]))
+        if st.button("Run slate sims"):
+            ss["sims"] = simulate_slate(b.slate, sport, int(n), int(APP_CFG["seed"]), b.mode)
+        if "sims" in ss:
+            sm = ss["sims"]
+            st.caption(f"Run log: {sm.run_log}")
+            st.dataframe(player_metrics(b.slate, sm, sport), hide_index=True, height=420)
+
 for t, text in ((3, "GPP candidate generator, field sims and portfolio selection — Phase 3."),
-                (4, "Correlated slate simulations and player metrics — Phase 2/3."),
                 (6, "Late swap (cash 6.4 + GPP) — Phase 4."),
                 (8, "Tracking, calibration and flashback — Phase 5.")):
     with tabs[t]:

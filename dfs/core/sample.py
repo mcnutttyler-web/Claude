@@ -71,10 +71,27 @@ def make_players(seed: int = 7, games=GAMES, include_k: bool = False) -> pd.Data
     value = df["median"] / (df["salary"] / 1000)
     raw = np.exp(2.2 * (value - value.mean()) / value.std() + 0.8 * (df["median"] - df["median"].mean())
                  / df["median"].std())
-    df["ownership"] = 0.0
     slots = {"QB": 1, "RB": 2.4, "WR": 3.4, "TE": 1.2, "DST": 1, "K": 1}
-    for pos, grp in df.groupby("position"):
-        df.loc[grp.index, "ownership"] = (raw[grp.index] / raw[grp.index].sum() * slots[pos]).clip(upper=0.85)
+
+    def own_for(gamma):
+        o = pd.Series(0.0, index=df.index)
+        adj = raw * np.exp(-gamma * df["salary"] / 1000)
+        for pos, grp in df.groupby("position"):
+            o.loc[grp.index] = (adj[grp.index] / adj[grp.index].sum() * slots[pos]).clip(upper=0.85)
+        return o
+
+    # Real ownership is salary-feasible: the implied average lineup salary sits near the field's ~$49,870.
+    sal_slots = [p for p in df["position"].unique() if p != "K"]
+    lo, hi = -2.0, 3.0
+    for _ in range(60):
+        g = (lo + hi) / 2
+        o = own_for(g)
+        implied = float((o * df["salary"])[df["position"].isin(sal_slots)].sum())
+        if implied > 49800:
+            lo = g
+        else:
+            hi = g
+    df["ownership"] = own_for((lo + hi) / 2)
     df["ownership"] = df["ownership"].round(4)
     df["status"] = ""
     return df

@@ -7,8 +7,16 @@ sims:
   max: 50000
   chunk: 2000
   dtype: float32
-cash:
-  candidates: {top_k: 300, blends: [0.2, 0.4], blend_k: 100, fade_pivots: 15}
+cash:                 # default — calibrate
+  candidates: {top_k: 300, blends: [0.2, 0.4], blend_k: 100, fade_pivots: 15, neighbor_swaps: 5}
+  field_pool: 3000    # field lineups generated per run; contest opponents are drawn from it by weight
+  mv_lambda: 0.01     # reported mean-variance score E[D] -/+ lambda Var(D)
+  alternatives: 5
+  alt_min_diff: 2
+  chalk_threshold: 0.40
+  low_own_threshold: 0.30
+  free_square_salary: 4500
+  free_square_own: 0.50
 gpp:
   pool_size: 2000
   pool_max: 10000

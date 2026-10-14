@@ -19,3 +19,5 @@ def test_app_phase1_flow():
     assert len(at.session_state["cash"].lineups) == 5
     at.checkbox(key="entries_sample").check().run()
     assert not at.exception and not at.error
+    [b for b in at.button if b.label == "Run slate sims"][0].click().run()
+    assert not at.exception and "sims" in at.session_state

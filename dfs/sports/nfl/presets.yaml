@@ -37,3 +37,25 @@ gpp:
     rules: {block_qb_vs_opp_dst: true, qb_stack_min: 2, bring_back_min: 1, bring_back_game_total_min: 48,
             max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
     uniqueness_U: 3
+
+field:                           # field models (Section 5.3) — default — calibrate
+  gpp:
+    kappa: 200
+    stacker_q: 0.6
+    second_catcher_p: 0.4
+    bring_back_p: 0.35
+    salary_floor: 49200
+    consensus_p: 0.0
+  cash:
+    kappa: 600
+    stacker_q: 0.3
+    second_catcher_p: 0.4
+    bring_back_p: 0.35
+    salary_floor: 49700
+    consensus_p: 0.5             # share of entrants drawn from consensus_cash.csv (+0-2 value pivots)
+    sharp_consensus_p: 0.8       # H2H opponent labelled "sharp"
+    max_pivots: 2
+  fit:
+    iterations: 12
+    tolerance_pp: 1.5
+    fit_sample: 10000

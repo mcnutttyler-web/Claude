@@ -232,6 +232,21 @@ class SportConfig:
         """objective_terms(ctx, options) -> list of PuLP expressions added to the objective."""
         return getattr(self._rules_mod, "objective_terms", None) if self._rules_mod else None
 
+    @property
+    def check_lineup(self) -> Callable | None:
+        """check_lineup(slate, players, options) -> list of hard-rule violations (sport-specific)."""
+        return getattr(self._rules_mod, "check_lineup", None) if self._rules_mod else None
+
+    @property
+    def field_stack(self) -> Callable | None:
+        """field_stack(slate, rng, weights, cfg) -> forced player indices for a 'stacker' field entrant."""
+        return getattr(self._rules_mod, "field_stack", None) if self._rules_mod else None
+
+    @property
+    def field_stack_batch(self) -> Callable | None:
+        """field_stack_batch(slate, rng, W, cfg, is_stacker) -> list of forced lists (vectorized hook)."""
+        return getattr(self._rules_mod, "field_stack_batch", None) if self._rules_mod else None
+
     def preset(self, kind: str, name: str | None = None) -> dict:
         block = self.presets.get(kind, {})
         if name is None:

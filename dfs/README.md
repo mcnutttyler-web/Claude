@@ -24,6 +24,11 @@ core/
   lineup.py           Lineup, DK validity checks, budget-aware random sampler, late-swap slot ordering
   optimizer.py        ILP builder (PuLP+CBC); slots/eligibility/cap/team/game rules come from SportConfig
   cash.py             Objective A (highest-median team under cash hard rules)
+  cash_sim.py         sim cash engine: candidates, cash line, P(beat line), regime, fade risk, free squares
+  distributions.py    shifted-lognormal / gamma marginals fitted to median + ceiling (or CV), bust mixture
+  correlation.py      role-pair prior + game factor -> correlation matrix, Higham nearest-PSD repair
+  slate_sim.py        Gaussian-copula slate sims (float32, seeded, run log) + player metrics
+  field.py            GPP and cash field models: Dirichlet + stackers + consensus mixture, raked weights
   contest.py          contest.yaml/csv, payout tables, prize pool, rake, break-even rates
   export.py           DK upload CSV; DKEntries.csv byte-exact round-trip
   sample.py           synthetic (fictional) slate generator for the demo and tests
@@ -98,7 +103,7 @@ in Phase 5. Simulated ROI and real tracked results decide which lineups to play.
 ## Build phases
 - [x] **Phase 1:** SportConfig + NFL plugin, ingest and name matching, cash Objective A, export and DKEntries
   round-trip. Tests 1–3, 14 and 16.
-- [ ] Phase 2: distributions, correlation, slate sims, cash field, full cash module. Tests 4–6 and 9–11.
+- [x] **Phase 2:** distributions, correlation, slate sims, cash field, full cash module. Tests 4–6 and 9–11.
 - [ ] Phase 3: GPP generator, GPP field, payouts, portfolio, player metrics. Tests 8, 12, 13 and 17.
 - [ ] Phase 4: late swap and Showdown rules. Tests 7 and 15.
 - [ ] Phase 5: tracking, calibration and flashback.
