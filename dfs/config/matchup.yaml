@@ -1,0 +1,30 @@
+# EXPERIMENTAL matchup layer (core/matchup/). Off by default. A position's adjustment is only allowed after it
+# beat the opportunity/Vegas baseline in the walk-forward backtest (docs/matchup_backtest.md).
+# Every value is default — calibrate unless marked otherwise.
+
+enabled: false                 # master switch for the weekly pipeline (publish.py)
+positions:                     # written by scripts/matchup_backtest.py from the holdout decision
+  QB: false
+  RB: false
+  WR: false
+  TE: false
+cap: 0.08                      # multiplier capped at +-8%
+min_projection: 5.0            # effect / max(projection, 5) so tiny projections can't get huge swings
+
+archetypes:
+  window_games: 6              # rolling window (current season)
+  blend_k: 3                   # before week 4: weight_current = games / (games + 3)
+  blend_before_week: 4
+  role_change_pts: 0.20        # snap share moved > 20 pts vs last season -> current season only
+  clusters: {WR: 5, TE: 4, RB: 4, QB: 4}
+
+defense:
+  k: 8                         # weight_current = games / (games + k); tuned in the backtest over k_grid
+  k_grid: [3, 5, 8]
+  prior_shrink: 0.30           # last season's values shrunk 30% toward league average before blending
+
+decision:
+  tune_seasons: [2019, 2021]   # k chosen here
+  holdout_seasons: [2022, 2025]
+  min_rel_improvement: 0.005   # B must cut MAE by >= 0.5% AND the 95% bootstrap CI must exclude 0
+  bootstrap: 2000

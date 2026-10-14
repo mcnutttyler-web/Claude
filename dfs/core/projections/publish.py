@@ -197,6 +197,15 @@ def build_projections(
     if model is not None and len(model.rows):
         t, sw = vegas_sanity(t, model.rows, params)
         warnings.extend(sw)
+    if sport.name == "nfl":
+        from core.matchup.apply import slate_multipliers
+        from core.matchup.backtest import load_config
+        mcfg = load_config()
+        if mcfg.get("enabled"):
+            mult, mnotes = slate_multipliers(slate, t["mean"], sport, mcfg)
+            t["matchup_mult"] = mult.reindex(t.index).fillna(1.0)
+            t["mean"] = t["mean"] * t["matchup_mult"]
+            warnings.extend(mnotes)
     if len(market_extra):
         t = t.join(market_extra, how="left", rsuffix="_mkt")
     t["dk_id"] = t["id"]

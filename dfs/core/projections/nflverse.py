@@ -196,7 +196,7 @@ def load_season(season: int, before: pd.Timestamp | str | None = None, dest: str
 
     # snap counts: games actually played (denominator for shares) + snap share (route-participation proxy)
     sp = path_for("snaps", season, dest)
-    if sp.exists():
+    if sp.exists() and len(pg):
         sn = pd.read_parquet(sp)
         sn = sn[sn["game_type"].fillna("REG") == "REG"]
         sn["team"] = sn["team"].map(lambda t: normalize_team(t, al) if isinstance(t, str) else t)

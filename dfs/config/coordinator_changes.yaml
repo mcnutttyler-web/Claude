@@ -1,0 +1,5 @@
+# Offensive-coordinator / play-caller changes (free data has no OC table). Head-coach changes are detected
+# automatically from the nflverse schedule. One row per change; week 1 = offseason change.
+# A listed team's players get "current season only" archetype profiles (no prior-season blend).
+changes: []
+#  - {season: 2026, team: NYJ, week: 1, note: "new OC"}

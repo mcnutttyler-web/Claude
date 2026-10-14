@@ -47,6 +47,11 @@ def week_frame(season: int, week: int, games: pd.DataFrame, sport, params, cache
     if season not in cache:
         cache[season] = nflverse.load_season(season, aliases=al)
     full = cache[season]
+    if not len(cur["team_games"]):                       # week 1: last season is the "current" sample
+        if prior is None:
+            return None
+        cur = prior
+        prior = nflverse.load_season(season - 2, aliases=al) if nflverse.available(season - 2) else None
     act = full["player_games"][full["player_games"]["week"] == week].copy()
     act["actual"] = dk_points(act)
 

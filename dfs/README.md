@@ -114,6 +114,47 @@ In the app: **Projections → "Build my own from public data"**.
 
 Data credit: nflverse (data CC-BY 4.0).
 
+### Matchup layer (EXPERIMENTAL, off by default) — `core/matchup/`
+The layer asks: do players of a certain type do better or worse than their volume predicts against certain
+kinds of defenses? If so, it nudges projections by at most ±8%. It is only allowed to touch a position after
+beating the plain projection in a walk-forward backtest.
+
+Steps:
+1. **Archetypes.** Players are clustered by usage, with k-means on regular contributors from prior seasons.
+   Examples: "alpha target-hog WR", "slot PPR WR", "workhorse RB", "rushing QB".
+   - Profiles use the player's last 6 games.
+   - Before week 4 they're blended with last season, weight g/(g+3).
+   - The blend resets on a team change, a coach/OC change (`config/coordinator_changes.yaml`), or a snap share
+     move of more than 20 points.
+2. **Defense profiles.** These use only games before the week, judged against each opponent's own average
+   (schedule-adjusted). They cover:
+   - pass/run EPA allowed and the funnel between them
+   - explosive pass rate, pressure rate and middle-target share
+   - man rate and blitz rate
+   - what the defense allowed to the position and the archetype
+
+   Last season is shrunk 30% toward the league average, then blended in with weight games/(games + k).
+3. **Effect.** The target is actual DK points minus the points expected from targets and carries alone, minus the
+   player's own usual surplus. A ridge regression per position (defense features × archetype) is fit on that,
+   with heavy shrinkage:
+   - empirical-Bayes on small samples
+   - CV-chosen penalties with the one-standard-error rule
+
+   It is refit once per offseason.
+4. **Backtest.** 2019–2025, week by week. A = the opportunity/Vegas projection; B = A × the multiplier; raw DvP is
+   shown as a straw man. k is tuned on 2019–2021, and the decision is made on the 2022–2025 holdout (bootstrap
+   CI). See `docs/matchup_backtest.md`.
+
+```bash
+python scripts/matchup_baseline.py --seasons 2019-2026   # baseline projections (slow, resumable)
+python scripts/matchup_backtest.py                       # backtest + decision + 2026 model (trained 2016-2025)
+python scripts/matchup_weekly.py                         # Tuesday evening: refresh 2026 data, flags, live results
+```
+`config/matchup.yaml` holds `enabled: false` plus per-position switches that the backtest sets. In-season, the
+features update weekly but the coefficients stay frozen. Results for each 2026 week are appended to
+`docs/live_2026_results.md`. When a season's coverage charting is missing (2026 has no man/zone participation
+file), that feature is switched off automatically.
+
 Projection phases:
 - [x] **P1:** CSV importers, implied totals, consensus blend (inverse-MAE), overrides, publish, backtest harness.
 - [x] **P2:** props model (power de-vig, alt-line CDFs, TD λ), Questionable mixtures, weather, DST, Monte Carlo
