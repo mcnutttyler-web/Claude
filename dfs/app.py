@@ -20,6 +20,8 @@ from core.field import fit_field
 from core.slate_sim import player_metrics, simulate_slate
 from core.contest import break_even_table, load_contest, template_paths
 from core.export import ExportError, assign_lineups_to_entries, read_entries, upload_csv, write_entries
+from core.lineup import export_ids
+import numpy as np
 from core.ingest import (PROJECTION_SYNONYMS, REQUIRED, apply_column_mapping, auto_column_mapping, build_slate,
                          read_dk_salaries)
 from core.optimizer import InfeasibleError
@@ -338,9 +340,96 @@ with tabs[6]:
                 st.download_button("Download swapped DKEntries.csv", write_entries(ef, assign),
                                    file_name="DKEntries_lateswap.csv")
 
-for t, text in ((8, "Tracking, calibration and flashback — Phase 5."),):
-    with tabs[t]:
-        st.info(text)
+with tabs[8]:
+    from core import tracking
+    st.subheader("Tracking")
+    st.caption("Entries are logged from the Export tab (with the model's prediction). Settle them with DK's "
+               "contest-history export (My Contests → Download).")
+    hist_up = st.file_uploader("DK contest history CSV", type=["csv"], key="hist")
+    if hist_up is not None and st.button("Settle results"):
+        _, n_set = tracking.settle(tracking.read_contest_history(io.BytesIO(hist_up.getvalue())))
+        st.success(f"Settled {n_set} entries")
+    log = tracking.load_log()
+    oc = tracking.overconfidence(log)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Settled cash entries", oc["n"])
+    c2.metric("Predicted cash rate", "-" if oc["predicted"] is None else f"{oc['predicted']:.1%}")
+    c3.metric("Realized cash rate", "-" if oc["realized"] is None else f"{oc['realized']:.1%}")
+    c4.metric("Gap", "-" if oc["gap"] is None else f"{oc['gap']:+.1%}")
+    if oc["overconfident"]:
+        st.error("Cash model is OVERCONFIDENT: realized is more than 5 pp below predicted over 50+ entries. "
+                 "Widen distributions / recalibrate before trusting P(win).")
+    elif not oc["enough_data"]:
+        st.info("Need 50+ settled cash entries before judging calibration.")
+    rel = tracking.reliability(log)
+    if len(rel):
+        st.markdown("Reliability (predicted vs realized cash rate)")
+        st.dataframe(rel, hide_index=True)
+        st.scatter_chart(rel.assign(bin=rel["bin"].astype(str)), x="predicted", y="realized", size="n")
+    roi = tracking.cumulative_roi(log)
+    if len(roi):
+        st.markdown("Cumulative ROI vs break-even (0%)")
+        st.line_chart(roi.set_index("n")[["roi", "breakeven_roi"]])
+    with st.expander("Entry log"):
+        st.dataframe(log, hide_index=True)
+
+    st.divider()
+    st.subheader("Calibration")
+    st.markdown(f"Suggestions only — review, then paste into the sport plugin YAML {CALIBRATE}")
+    ph = st.file_uploader("Player history CSV (season, week, team, opp, position, median, actual[, role, floor, "
+                          "ceiling])", type=["csv"], key="phist")
+    if ph is not None:
+        from core.calibration import coverage_report, fit_correlations, fit_cv, read_player_history, suggestions_yaml
+        h = read_player_history(io.BytesIO(ph.getvalue()))
+        cvt, cor = fit_cv(h, sport), fit_correlations(h, sport)
+        st.markdown("CV by position"); st.dataframe(cvt, hide_index=True)
+        st.markdown("Role-pair correlations"); st.dataframe(cor, hide_index=True)
+        cov = coverage_report(h)
+        if len(cov):
+            st.markdown("Floor / ceiling coverage"); st.dataframe(cov)
+        st.download_button("Download suggested YAML", suggestions_yaml(cvt, cor), file_name="calibration.yaml")
+
+    st.subheader("Flashback")
+    st.caption("Upload a completed contest's standings export. Your lineups are re-scored by the pre-slate sims "
+               "against the REAL field; the field's average sim ROI equals -rake (typical break-even -10% to -16%).")
+    b = ss.get("build")
+    sd_up = st.file_uploader("DK contest standings CSV", type=["csv"], key="stand")
+    if sd_up is not None and b is not None and b.ready:
+        from core.calibration import field_params_from_standings, ownership_report
+        from core.reports import flashback
+        from core.standings import actual_ownership, lineups_from_standings, read_standings
+        stnd = read_standings(io.BytesIO(sd_up.getvalue()))
+        tmpl = {p.stem: p for p in template_paths()}
+        ck = st.selectbox("Contest payout structure", list(tmpl), key="fb_contest")
+        mine = st.text_input("Your entry IDs or names (comma separated)")
+        if st.button("Run flashback"):
+            if "sims" not in ss:
+                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), b.mode)
+            spec = sport.mode(b.mode)
+            ids = [x.strip() for x in mine.split(",") if x.strip()]
+            ids += list(stnd.entries.loc[stnd.entries["entry_name"].str.split(" ").str[0].isin(ids), "entry_id"])
+            fb = flashback(stnd, b.slate, ss["sims"].scores, load_contest(tmpl[ck]), spec, ids)
+            st.json({k: v for k, v in fb.items() if k not in ("mine", "table")})
+            st.markdown("Your entries"); st.dataframe(fb["mine"], hide_index=True)
+            with st.expander("Whole field by sim ROI"):
+                st.dataframe(fb["table"].head(200), hide_index=True)
+            if "ownership" in b.slate:
+                st.markdown("Projected vs actual ownership")
+                st.dataframe(ownership_report(b.slate["ownership"].fillna(0), actual_ownership(stnd, b.slate),
+                                              b.slate["position"]), hide_index=True)
+            st.markdown("Field behaviour (for the field model)")
+            st.json(field_params_from_standings(lineups_from_standings(stnd, b.slate, spec), b.slate, spec, sport))
+    elif sd_up is not None:
+        st.info("Load the slate's DKSalaries + projections first.")
+
+    st.subheader("Bankroll (heuristic)")
+    from core.reports import bankroll_warnings
+    c1, c2, c3 = st.columns(3)
+    br = c1.number_input("Bankroll $", 0.0, 1e7, 0.0, step=50.0)
+    fees = c2.number_input("This slate's total entry fees $", 0.0, 1e6, 0.0, step=5.0)
+    big = c3.number_input("Largest single GPP total fees $", 0.0, 1e6, 0.0, step=5.0)
+    for w in bankroll_warnings(br, fees, big):
+        st.warning(w)
 
 with tabs[5]:
     st.subheader("Showdown")
@@ -388,6 +477,36 @@ with tabs[7]:
                 assign = assign_lineups_to_entries(ef, by_contest, b.slate, spec)
                 out = write_entries(ef, assign)
                 st.download_button("Download edited DKEntries.csv", out, file_name="DKEntries_edited.csv")
+                if st.button("Log these entries for tracking"):
+                    from core import tracking
+                    from core.lateswap import guess_contest_template
+                    rep_c, run_g = ss.get("cash_report"), ss.get("gpp_run")
+                    rows = []
+                    for _, e in ents.iterrows():
+                        if e["Entry ID"] not in assign:
+                            continue
+                        ids = assign[e["Entry ID"]]
+                        key = guess_contest_template(e["Contest Name"])
+                        c = load_contest(contests[key])
+                        lu_ids = "|".join(ids)
+                        r = {"entry_id": e["Entry ID"], "contest_id": e["Contest ID"], "contest_name": e["Contest Name"],
+                             "contest_type": c.type, "payout_multiple": c.payout_multiple if c.is_cash else np.nan,
+                             "entry_fee": float(str(e["Entry Fee"]).replace("$", "") or 0), "lineup_ids": lu_ids,
+                             "slate": ss.get("sal_hash")}
+                        if c.is_cash and rep_c is not None and c.type in rep_c.results:
+                            res_c = rep_c.results[c.type]
+                            for lu in [res_c.recommended] + res_c.alternatives:
+                                if "|".join(export_ids(lu, b.slate, spec)) == lu_ids:
+                                    k = rep_c.candidates.index(lu)
+                                    r["pred_p_win"] = float(res_c.metrics.at[k, "p_win"])
+                        if not c.is_cash and run_g is not None:
+                            for j, lu in enumerate(run_g.portfolio.lineups):
+                                if "|".join(export_ids(lu, b.slate, spec)) == lu_ids:
+                                    roi = float(run_g.portfolio.lineup_table.at[j, "sim_roi"])
+                                    r["pred_exp_payout"] = r["entry_fee"] * (1 + roi)
+                        rows.append(r)
+                    tracking.log_entries(rows)
+                    st.success(f"Logged {len(rows)} entries to data/tracking/entries_log.csv")
             except ExportError as e:
                 st.error(str(e))
         st.caption(f"Run log — sport={sport.name} salaries={ss.get('sal_hash')} projections={ss.get('proj_hash')}")

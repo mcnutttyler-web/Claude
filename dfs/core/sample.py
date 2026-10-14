@@ -189,3 +189,42 @@ def write_sample_data(out_dir: str | Path) -> None:
     (out / "DKEntries.csv").write_text(dk_entries_csv(
         [("NFL $10 Double Up, Sunday Main", "180000001", "$10", 3),
          ("NFL $20 20-Max GPP [Mid-Field]", "180000002", "$20", 5)], header, players), newline="")
+
+
+def dk_standings_csv(slate: pd.DataFrame, lineups, actual: np.ndarray, spec, entry_names=None,
+                     entry_ids=None) -> str:
+    """DK contest-standings export layout for synthetic tests (fictional entrants)."""
+    names = slate["name"].str.strip().to_numpy()
+    mult = np.array([s.points_mult for s in spec.slots])
+    pts = np.array([float((actual[list(lu.players)] * mult).sum()) for lu in lineups])
+    order = np.argsort(-pts, kind="stable")
+    ranks = np.empty(len(pts), dtype=int)
+    ranks[order] = np.arange(1, len(pts) + 1)
+    own = np.zeros(len(slate))
+    for lu in lineups:
+        own[list(lu.players)] += 1
+    own /= len(lineups)
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\r\n")
+    w.writerow(["Rank", "EntryId", "EntryName", "TimeRemaining", "Points", "Lineup", "", "Player",
+                "Roster Position", "%Drafted", "FPTS"])
+    players = [i for i in np.argsort(-own) if own[i] > 0]
+    for k, m in enumerate(order):
+        lu = lineups[m]
+        text = " ".join(f"{s.name} {names[p]}" for s, p in zip(spec.slots, lu.players))
+        row = [ranks[m], (entry_ids or {}).get(m, str(5000000000 + m)),
+               (entry_names or {}).get(m, f"entrant{m} (1/1)"), 0, round(pts[m], 2), text, ""]
+        if k < len(players):
+            p = players[k]
+            row += [names[p], slate.at[p, "position"], f"{100 * own[p]:.2f}%", round(float(actual[p]), 2)]
+        else:
+            row += ["", "", "", ""]
+        w.writerow(row)
+    return buf.getvalue()
+
+
+def dk_contest_history_csv(rows: list[dict]) -> str:
+    """DK 'My Contests' history export (subset of columns)."""
+    cols = ["Sport", "Game_Type", "Entry_Key", "Entry", "Contest_Key", "Contest_Date_EST", "Place", "Points",
+            "Winnings_Non_Ticket", "Winnings_Ticket", "Contest_Entries", "Entry_Fee", "Prize_Pool", "Places_Paid"]
+    return pd.DataFrame([{c: r.get(c, "") for c in cols} for r in rows]).to_csv(index=False)

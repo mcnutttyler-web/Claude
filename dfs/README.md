@@ -34,6 +34,10 @@ core/
                       parallel sim-sampled candidate pool, optimal% / leverage, chunked candidate scoring
   portfolio.py        greedy portfolio by exact marginal payout (own entries compete), report
   lateswap.py         DKEntries late swap: lock started games, condition on actual scores, re-solve open slots
+  standings.py        DK contest-standings export parser (real field lineups, %Drafted, FPTS)
+  tracking.py         entry log (CSV), settle from DK contest history, reliability, ROI, overconfidence flag
+  calibration.py      refit CVs, role-pair correlations, ownership accuracy and field behaviour (shrunk to prior)
+  reports.py          flashback (sim ROI vs the real field; field average = -rake) and bankroll warnings
   contest.py          contest.yaml/csv, payout tables, prize pool, rake, break-even rates
   export.py           DK upload CSV; DKEntries.csv byte-exact round-trip
   sample.py           synthetic (fictional) slate generator for the demo and tests
@@ -100,6 +104,14 @@ Every heuristic default (correlations, CVs, presets, field-model parameters, min
 starting value, not a law. The UI marks each one **default — calibrate**. Calibration and backtest utilities arrive
 in Phase 5. Simulated ROI and real tracked results decide which lineups to play. Winning-lineup anecdotes do not.
 
+## Weekly loop (after Phase 5)
+1. Build lineups → Export → DKEntries round-trip → **Log these entries for tracking**.
+2. After the slate: download DK contest history (My Contests) → Tracking tab → **Settle results**.
+3. Download a contest's standings → **Flashback**: sim ROI of your lineups vs the real field, ownership accuracy,
+   real field behaviour (stack rate, salary use) for the field model.
+4. Every few weeks: player history → **Calibration** → review the suggested YAML and paste it into the plugin.
+   Watch the overconfidence flag (realized − predicted cash rate < −5 pp over 50+ entries).
+
 ## Things to verify each season
 - `sports/nfl/config.yaml` scoring, especially the **DST event values, which are marked unverified**.
 - Entry limits: DK caps Salary Cap contests under $5 at 20 entries per customer, except mini-MAX (150).
@@ -112,5 +124,5 @@ in Phase 5. Simulated ROI and real tracked results decide which lineups to play.
 - [x] **Phase 3:** GPP generator, GPP field, payouts, portfolio, player metrics. Tests 8, 12, 13 and 17.
 - [x] **Phase 4:** late swap and Showdown rules (K+DST <= 2, CPT QB needs a catcher, CPT bring-back, soft K/DST
   captain and WR/TE-captain-without-QB penalties, CPT ownership in the objective and the field). Tests 7 and 15.
-- [ ] Phase 5: tracking, calibration and flashback.
+- [x] **Phase 5:** tracking, calibration and flashback.
 - [ ] Phase 6: NBA plugin.
