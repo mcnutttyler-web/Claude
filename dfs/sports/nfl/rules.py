@@ -30,10 +30,9 @@ def build_constraints(ctx, opt: dict) -> None:
     dsts = ctx.players(positions=["DST"])
 
     if opt.get("block_qb_vs_opp_dst"):
-        for d in dsts:
-            opp_qbs = ctx.players(positions=["QB"], team=slate.at[d, "opp"])
-            if opp_qbs:
-                ctx.add(ctx.sum_xp(opp_qbs) <= len(opp_qbs) * (1 - ctx.xp[d]), "qb_vs_dst")
+        for d in dsts:                                   # pairwise form: tight LP relaxation
+            for q in ctx.players(positions=["QB"], team=slate.at[d, "opp"]):
+                ctx.add(ctx.xp[q] + ctx.xp[d] <= 1, "qb_vs_dst")
 
     stack_pos = opt.get("stack_positions", ["WR", "TE"])
     n_min = int(opt.get("qb_stack_min") or 0)
@@ -79,14 +78,19 @@ def objective_terms(ctx, opt: dict) -> list:
     pen = float(opt.get("soft_penalty_vs_opp_dst") or 0)
     if not pen:
         return []
+    # Penalty per (DST, opposing skill player) pair. Only pairs a lineup could plausibly use are modelled
+    # (the opponent's top players by median) to keep the model small; z >= x_p + x_d - 1 is the tight form.
+    top_k = int(opt.get("soft_penalty_top_k", 6))
+    med = ctx.slate["median"] if "median" in ctx.slate else None
     terms = []
     for d in ctx.players(positions=["DST"]):
         opp = ctx.players(positions=list(SKILL), team=ctx.slate.at[d, "opp"])
-        if not opp:
-            continue
-        w = ctx.new_var("dstpen", cat="Continuous", low=0)
-        ctx.add(w >= ctx.sum_xp(opp) - len(opp) * (1 - ctx.xp[d]), "dstpen")
-        terms.append(-pen * w)
+        if med is not None:
+            opp = sorted(opp, key=lambda i: -float(med.iloc[i]))[:top_k]
+        for p in opp:
+            z = ctx.new_var("dstpen", cat="Continuous", low=0)
+            ctx.add(z >= ctx.xp[p] + ctx.xp[d] - 1, "dstpen")
+            terms.append(-pen * z)
     return terms
 
 

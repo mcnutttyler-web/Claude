@@ -29,6 +29,10 @@ core/
   correlation.py      role-pair prior + game factor -> correlation matrix, Higham nearest-PSD repair
   slate_sim.py        Gaussian-copula slate sims (float32, seeded, run log) + player metrics
   field.py            GPP and cash field models: Dirichlet + stackers + consensus mixture, raked weights
+  payouts.py          exact tie-splitting settlement; fractional-rank payouts vs a weighted field
+  gpp.py              presets, GPP ILP (log-own objective, own band, product cap), rules generator,
+                      parallel sim-sampled candidate pool, optimal% / leverage, chunked candidate scoring
+  portfolio.py        greedy portfolio by exact marginal payout (own entries compete), report
   contest.py          contest.yaml/csv, payout tables, prize pool, rake, break-even rates
   export.py           DK upload CSV; DKEntries.csv byte-exact round-trip
   sample.py           synthetic (fictional) slate generator for the demo and tests
@@ -104,7 +108,7 @@ in Phase 5. Simulated ROI and real tracked results decide which lineups to play.
 - [x] **Phase 1:** SportConfig + NFL plugin, ingest and name matching, cash Objective A, export and DKEntries
   round-trip. Tests 1–3, 14 and 16.
 - [x] **Phase 2:** distributions, correlation, slate sims, cash field, full cash module. Tests 4–6 and 9–11.
-- [ ] Phase 3: GPP generator, GPP field, payouts, portfolio, player metrics. Tests 8, 12, 13 and 17.
+- [x] **Phase 3:** GPP generator, GPP field, payouts, portfolio, player metrics. Tests 8, 12, 13 and 17.
 - [ ] Phase 4: late swap and Showdown rules. Tests 7 and 15.
 - [ ] Phase 5: tracking, calibration and flashback.
 - [ ] Phase 6: NBA plugin.

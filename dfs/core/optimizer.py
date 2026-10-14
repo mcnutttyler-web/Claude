@@ -16,6 +16,8 @@ from typing import Any, Callable, Iterable, Sequence
 import numpy as np
 import pandas as pd
 import pulp
+from scipy import sparse
+from scipy.optimize import Bounds, LinearConstraint, milp
 
 from core.lineup import Lineup, eligibility_matrix, slot_salary
 from sports.base import ModeSpec, SportConfig
@@ -91,6 +93,8 @@ class LineupILP:
         rules: dict[str, Any] | None = None,
         extra_constraints: Callable[[ILPContext], None] | None = None,
         time_limit: float | None = 30,
+        gap_rel: float | None = None,             # relative MIP gap (None = prove optimality)
+        engine: str = "cbc",                 # "highs" = scipy in-process HiGHS (no subprocess)
     ):
         self.sport = sport
         self.spec: ModeSpec = sport.mode(mode)
@@ -170,6 +174,79 @@ class LineupILP:
             extra_constraints(self.ctx)
         self.prob = prob
         self._cuts = 0
+        self.engine = engine
+        self.gap_rel = gap_rel
+        self._compiled = None
+        self._extra_rows: list[tuple[dict[int, float], float, float]] = []
+
+    # ------------------------------------------------------- HiGHS (in-process)
+    def _compile(self) -> None:
+        """Turn the PuLP model into sparse matrices once; HiGHS then re-solves it in-process (no MPS, no subprocess)."""
+        vars_ = self.prob.variables()
+        col = {v.name: k for k, v in enumerate(vars_)}
+        rows, cols, vals, lb, ub = [], [], [], [], []
+        for r, (_, c) in enumerate(self.prob.constraints.items()):
+            for v, a in c.items():
+                rows.append(r)
+                cols.append(col[v.name])
+                vals.append(float(a))
+            rhs = -float(c.constant)
+            if c.sense == pulp.LpConstraintLE:
+                lb.append(-np.inf); ub.append(rhs)
+            elif c.sense == pulp.LpConstraintGE:
+                lb.append(rhs); ub.append(np.inf)
+            else:
+                lb.append(rhs); ub.append(rhs)
+        A = sparse.csr_matrix((vals, (rows, cols)), shape=(len(self.prob.constraints), len(vars_)))
+        integ = np.array([1 if v.cat in (pulp.LpInteger, pulp.LpBinary) else 0 for v in vars_])
+        lo = np.array([-np.inf if v.lowBound is None else v.lowBound for v in vars_], dtype=float)
+        hi = np.array([np.inf if v.upBound is None else v.upBound for v in vars_], dtype=float)
+        hi[(integ == 1) & np.isinf(hi)] = 1.0          # LpBinary created as cat=Binary -> 0/1
+        lo[(integ == 1) & np.isinf(lo)] = 0.0
+        x_cols = np.array([col[v.name] for v in self.x.values()])
+        extra_c = np.zeros(len(vars_))
+        for term in self.ctx.objective_extra:
+            for v, a in pulp.lpSum(term).items():
+                extra_c[col[v.name]] += float(a)
+        self._compiled = dict(A=A, lb=np.array(lb), ub=np.array(ub), integ=integ, lo=lo, hi=hi, col=col,
+                              x_cols=x_cols, keys=list(self.x.keys()), extra_c=extra_c, n=len(vars_))
+
+    def _xp_cols(self, players) -> dict[int, float]:
+        cp = self._compiled
+        out: dict[int, float] = {}
+        for k, (i, s) in enumerate(cp["keys"]):
+            if i in players:
+                out[int(cp["x_cols"][k])] = 1.0
+        return out
+
+    def add_row(self, coefs: dict[int, float], lb: float, ub: float) -> None:
+        self._extra_rows.append((coefs, lb, ub))
+
+    def _solve_highs(self, values: np.ndarray) -> Lineup | None:
+        cp = self._compiled
+        c = cp["extra_c"].copy()
+        for k, (i, s) in enumerate(cp["keys"]):
+            c[cp["x_cols"][k]] += float(values[i]) * self.spec.slot_by_name(s).points_mult
+        A, lb, ub = cp["A"], cp["lb"], cp["ub"]
+        if self._extra_rows:
+            r = sparse.csr_matrix(([v for d, _, _ in self._extra_rows for v in d.values()],
+                                   ([k for k, (d, _, _) in enumerate(self._extra_rows) for _ in d],
+                                    [j for d, _, _ in self._extra_rows for j in d])),
+                                  shape=(len(self._extra_rows), cp["n"]))
+            A = sparse.vstack([A, r]).tocsr()
+            lb = np.r_[lb, [x for _, x, _ in self._extra_rows]]
+            ub = np.r_[ub, [x for _, _, x in self._extra_rows]]
+        res = milp(-c, constraints=LinearConstraint(A, lb, ub), integrality=cp["integ"],
+                   bounds=Bounds(cp["lo"], cp["hi"]),
+                   options={"time_limit": self.time_limit or 30, "disp": False, "mip_rel_gap": self.gap_rel or 1e-6})
+        if res.x is None or res.status not in (0,):
+            return None
+        xv = res.x
+        chosen: dict[str, list[int]] = {}
+        for k, (i, s) in enumerate(cp["keys"]):
+            if xv[cp["x_cols"][k]] > 0.5:
+                chosen.setdefault(s, []).append(i)
+        return Lineup(tuple(chosen[s.name].pop(0) for s in self.spec.slots), self.spec.name)
 
     # ----------------------------------------------------------------- solve
     def _set_objective(self, values: np.ndarray) -> None:
@@ -190,7 +267,7 @@ class LineupILP:
         return Lineup(tuple(players), self.spec.name)
 
     def _solve_once(self) -> Lineup | None:
-        solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=self.time_limit)
+        solver = pulp.PULP_CBC_CMD(msg=False, timeLimit=self.time_limit, gapRel=self.gap_rel)
         self.prob.solve(solver)
         if pulp.LpStatus[self.prob.status] != "Optimal":
             return None
@@ -199,6 +276,18 @@ class LineupILP:
     def add_no_good(self, lu: Lineup, max_shared: int | None = None) -> None:
         """Forbid this lineup (default) or force at most `max_shared` shared players with it."""
         self._cuts += 1
+        if self.engine == "highs":
+            if self._compiled is None:
+                self._compile()
+            cp = self._compiled
+            if max_shared is None and self.spec.captain_slot is not None:
+                want = {(i, s.name) for i, s in zip(lu.players, self.spec.slots)}
+                d = {int(cp["x_cols"][k]): 1.0 for k, key in enumerate(cp["keys"]) if key in want}
+                self.add_row(d, -np.inf, self.spec.roster_size - 1)
+            else:
+                d = self._xp_cols(set(lu.players))
+                self.add_row(d, -np.inf, self.spec.roster_size - 1 if max_shared is None else max_shared)
+            return
         if max_shared is None:
             if self.spec.captain_slot is None:
                 expr = pulp.lpSum(self.xp[i] for i in lu.players)
@@ -215,11 +304,16 @@ class LineupILP:
         max_shared: if set, each new lineup shares at most this many players with every earlier one
         (uniqueness U = roster_size - max_shared).
         """
-        self._set_objective(np.asarray(values, dtype=float))
+        vals = np.asarray(values, dtype=float)
+        if self.engine == "highs":
+            if self._compiled is None:
+                self._compile()
+        else:
+            self._set_objective(vals)
         out: list[Lineup] = []
         t0 = time.time()
         for _ in range(k):
-            lu = self._solve_once()
+            lu = self._solve_highs(vals) if self.engine == "highs" else self._solve_once()
             if lu is None:
                 break
             out.append(lu)

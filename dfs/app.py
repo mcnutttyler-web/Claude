@@ -242,8 +242,48 @@ with tabs[4]:
             st.caption(f"Run log: {sm.run_log}")
             st.dataframe(player_metrics(b.slate, sm, sport), hide_index=True, height=420)
 
-for t, text in ((3, "GPP candidate generator, field sims and portfolio selection — Phase 3."),
-                (6, "Late swap (cash 6.4 + GPP) — Phase 4."),
+with tabs[3]:
+    st.subheader("GPP — portfolio by simulated ROI vs a simulated field")
+    st.markdown(f"Presets, field model and payout templates are heuristics {CALIBRATE}")
+    b = ss.get("build")
+    if b is None or not b.ready:
+        st.info("Load and fully match projections first.")
+    elif "ownership" not in b.slate or b.slate["ownership"].isna().all():
+        st.error("GPP needs projected ownership (map an ownership column on the Projections tab).")
+    else:
+        presets = {k: v for k, v in sport.preset("gpp").items() if isinstance(v, dict) and "lambda_log_own" in v}
+        c1, c2, c3 = st.columns(3)
+        pre = c1.selectbox("Preset", list(presets), format_func=lambda k: presets[k].get("label", k), index=1)
+        tmpl = {p.stem: p for p in template_paths()}
+        gpp_keys = [k for k in tmpl if not load_contest(tmpl[k]).is_cash]
+        ck = c2.selectbox("Contest", gpp_keys)
+        contest = load_contest(tmpl[ck])
+        n_lu = c3.number_input("Lineups", 1, int(contest.max_entries), min(20, int(contest.max_entries)))
+        c4, c5, c6 = st.columns(3)
+        n_cand = c4.number_input("Candidate pool (sim-sampled)", 100, 10000, 1000, step=100)
+        max_exp = c5.slider("Max exposure", 0.1, 1.0, float(sport.preset("gpp").get("portfolio", {}).get(
+            "max_exposure", 0.6)), 0.05)
+        opt_n = c6.number_input("optimal% sims (0 = skip)", 0, 2000, 300, step=100)
+        if st.button("Build GPP portfolio", type="primary"):
+            from core.gpp import run_gpp
+            if "sims" not in ss:
+                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), b.mode)
+            with st.spinner("Generating candidates, fitting the field, selecting the portfolio..."):
+                ss["gpp_run"] = run_gpp(sport, b.slate, ss["sims"].scores, contest, int(n_lu), pre, b.mode,
+                                        n_candidates=int(n_cand), optimal_sims=int(opt_n), max_exposure=max_exp)
+        run = ss.get("gpp_run")
+        if run is not None:
+            pr = run.portfolio
+            st.caption(f"timings {run.info}")
+            st.json(pr.report)
+            st.dataframe(pr.lineup_table, hide_index=True)
+            c1, c2 = st.columns(2)
+            c1.markdown("Exposure vs field (vs optimal%)"); c1.dataframe(pr.exposure, hide_index=True, height=300)
+            c2.markdown("Stack exposure"); c2.dataframe(pr.stacks, hide_index=True, height=300)
+            if run.leverage is not None:
+                st.markdown("Leverage (optimal% − ownership)"); st.dataframe(run.leverage.head(30), hide_index=True)
+
+for t, text in ((6, "Late swap (cash 6.4 + GPP) — Phase 4."),
                 (8, "Tracking, calibration and flashback — Phase 5.")):
     with tabs[t]:
         st.info(text)
@@ -257,12 +297,19 @@ with tabs[5]:
 with tabs[7]:
     st.subheader("Export")
     b = ss.get("build")
-    res = ss.get("cash")
-    if b is None or res is None:
+    sources = {}
+    if ss.get("cash") is not None:
+        sources["Cash"] = ss["cash"].lineups
+    if ss.get("gpp_run") is not None:
+        sources["GPP portfolio"] = ss["gpp_run"].portfolio.lineups
+    if b is None or not sources:
         st.info("Build lineups first.")
     else:
         spec = sport.mode(b.mode)
-        chosen = st.multiselect("Lineups to export", list(range(1, len(res.lineups) + 1)), default=[1])
+        src = st.radio("Lineup source", list(sources), horizontal=True)
+        res = CashResult(sources[src], pd.DataFrame())
+        default = list(range(1, len(res.lineups) + 1)) if src == "GPP portfolio" else [1]
+        chosen = st.multiselect("Lineups to export", list(range(1, len(res.lineups) + 1)), default=default)
         lus = [res.lineups[i - 1] for i in chosen]
         contests = {p.stem: p for p in template_paths()}
         cname = st.selectbox("Contest (for max_entries)", ["(none)"] + list(contests))

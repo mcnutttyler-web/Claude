@@ -21,6 +21,7 @@ gpp:
     rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, bring_back_min: 0,
             max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
     uniqueness_U: null
+    min_salary: 49000
   mid_20max:
     label: "20-max, 5k-50k field"
     lambda_log_own: 1.0
@@ -29,14 +30,22 @@ gpp:
     rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, qb_stack_max: 2, bring_back_min: 0,
             max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
     uniqueness_U: 2
+    min_salary: 49000
   large_150max:
     label: "150-max, 100k+ Milly-style"
     lambda_log_own: 1.5
     cum_own_band: [0.80, 1.20]
-    product_own: {min_players_under: 1, under_pct: 0.05, product_cap: true}
+    product_own: {min_players_under: 1, under_pct: 0.05, log10_cap: -8.0}
     rules: {block_qb_vs_opp_dst: true, qb_stack_min: 2, bring_back_min: 1, bring_back_game_total_min: 48,
             max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
     uniqueness_U: 3
+    min_salary: 49000
+  # Portfolio defaults (Section 7.3)
+  portfolio:
+    max_shared_players: 6        # overlap limit between any two lineups (9-man NFL)
+    max_exposure: 0.6
+    shortlist: 25                # candidates re-scored exactly per greedy step
+    approx_sims: null            # sims used to rank the shortlist (null = all; ~2000 speeds up 150-max)
 
 field:                           # field models (Section 5.3) — default — calibrate
   gpp:
