@@ -27,7 +27,12 @@ from core.projections.blend import blend
 from core.projections.params import DEFAULT_PATH, Params
 from core.projections.sources import (SourceSpec, load_source_specs, read_actuals, read_history,
                                       read_injuries, read_overrides, read_source)
+from core.projections.distributions import simulate
+from core.projections.dst import dst_model_rows
+from core.projections.market import market_rows, read_props
+from core.projections.ownership import classic_ownership, showdown_ownership
 from core.projections.vegas import consensus_lines, read_odds, team_environment
+from core.projections.weather import apply_weather, read_weather
 from sports.base import SportConfig, load_sport
 
 SCHEMA_IDENTITY = ["player_id", "dk_id", "name", "team", "opp", "position", "salary", "game_id", "lock_time",
@@ -50,6 +55,7 @@ class ProjectionRun:
     team_check: pd.DataFrame
     log: dict
     warnings: list[str] = field(default_factory=list)
+    sims: object = None             # distributions.SimResult when outcomes were simulated
 
 
 def _hash_inputs(paths: list) -> str:
@@ -84,6 +90,11 @@ def build_projections(
     actuals: str | Path | None = None,
     seed: int = 20261013,
     params: Params | None = None,
+    props: str | Path | None = None,
+    weather: str | Path | None = None,
+    dst_inputs: str | Path | None = None,
+    simulate_outcomes: bool = True,
+    n_sims: int | None = None,
 ) -> ProjectionRun:
     sport = load_sport(sport) if isinstance(sport, str) else sport
     params = params or Params(sport.name)
@@ -99,7 +110,8 @@ def build_projections(
             warnings.append(f"{spec.name}: {len(bad)} projected rows unmatched to DK "
                             f"(e.g. {', '.join(bad['name'].head(3))})")
             unmatched.append(bad.assign(source=spec.name))
-    rows = pd.concat(rows, ignore_index=True)
+    rows = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame(columns=["dk_index", "source", "component",
+                                                                                 "points"])
 
     weights, weight_method = None, "equal"
     if history is not None and actuals is not None:
@@ -113,22 +125,48 @@ def build_projections(
         else:
             warnings.append("history has none of the configured source names — using equal weights")
 
-    b = blend(rows, slate, params, weights)
-    t = slate.copy()
-    t = t.join(b.set_index("dk_index"), how="left")
-    t["dk_id"] = t["id"]
-    t["player_id"] = t["id"]          # nflverse gsis_id mapping arrives with the P3 bottom-up model
-
-    # Vegas environment.
+    # Vegas environment (needed by the DST model).
+    env = None
     if odds is not None:
-        lines = consensus_lines(read_odds(odds, sport.team_aliases), params.get("vegas.book_weights"))
-        env = team_environment(lines)
-        t = t.merge(env[["team", "spread", "game_total", "team_total"]], on="team", how="left")
-        missing = sorted(set(t["team"]) - set(env["team"]))
+        env = team_environment(consensus_lines(read_odds(odds, sport.team_aliases), params.get("vegas.book_weights")))
+        missing = sorted(set(slate["team"]) - set(env["team"]))
         if missing:
             warnings.append(f"no odds for teams {missing}")
     else:
         warnings.append("no odds file: team_total / game_total / spread left empty")
+
+    # Market component from props (secondary stats filled from the consensus stat blend where available).
+    market_extra = pd.DataFrame()
+    int_by_team: dict[str, float] = {}
+    if props is not None:
+        pre = blend(rows, slate, params, weights).set_index("dk_index") if len(rows) else None
+        mrows, mplayers, mw = market_rows(read_props(props), slate, sport, params, pre)
+        warnings.extend(mw)
+        if len(mrows):
+            rows = pd.concat([rows, mrows], ignore_index=True)
+            keep = [c for c in mrows.columns if c.startswith(("sd_", "median_", "p_"))]
+            market_extra = mrows.set_index("dk_index")[keep]
+            for i, mp in mplayers.items():
+                if slate.at[i, "position"] == "QB" and "int" in mp.lambdas:
+                    int_by_team[slate.at[i, "team"]] = mp.lambdas["int"]
+
+    # DST model component.
+    dst_detail: dict[int, dict] = {}
+    if env is not None and sport.name == "nfl":
+        di = pd.read_csv(dst_inputs) if dst_inputs is not None else None
+        drows, dst_detail = dst_model_rows(slate, env, params, sport.scoring_cfg, di, int_by_team)
+        if len(drows):
+            rows = pd.concat([rows, drows], ignore_index=True)
+
+    b = blend(rows, slate, params, weights)
+    t = slate.copy()
+    t = t.join(b.set_index("dk_index"), how="left")
+    if len(market_extra):
+        t = t.join(market_extra, how="left", rsuffix="_mkt")
+    t["dk_id"] = t["id"]
+    t["player_id"] = t["id"]          # nflverse gsis_id mapping arrives with the P3 bottom-up model
+    if env is not None:
+        t = t.join(env.set_index("team")[["spread", "game_total", "team_total"]], on="team")
 
     # Injuries -> status, p_play.
     t["status"] = ""
@@ -138,17 +176,17 @@ def build_projections(
         t.loc[st.index, "status"] = st.str.upper()
     from core.projections.sources import p_play as _p_play
     t["p_play"] = [_p_play(s, "", params) for s in t["status"]]
+    t.loc[t["position"].isin(sport.team_unit_positions) & (t["status"] == ""), "p_play"] = 1.0
     if injuries is not None:
         inj = read_injuries(injuries, slate, sport, params).set_index("dk_index")
         t.loc[inj.index, "status"] = inj["status"]
         t.loc[inj.index, "p_play"] = inj["p_play"]
 
-    t["own_gpp"] = t.get("ownership", np.nan)
-    t["own_cash"] = t.get("cash_ownership", np.nan)
-    t["own_cpt"] = t.get("cpt_ownership", np.nan)
-    t["median"] = t["mean"]           # P1: no skew table yet (P2 distributions); flagged in run log
-    t["p10"] = t.get("floor", np.nan)
-    t["p90"] = t.get("ceiling", np.nan)
+    # Weather (outdoor games).
+    t["is_dome"], t["wind_mph"], t["precip"] = pd.Series(pd.NA, index=t.index, dtype=object), np.nan, ""
+    if weather is not None:
+        t, wnotes = apply_weather(t, read_weather(weather), params)
+        warnings.extend(wnotes)
 
     t["override_flag"] = False
     if overrides is not None:
@@ -157,35 +195,79 @@ def build_projections(
             col = r.field
             val = r.value if col == "status" else float(r.value)
             t.loc[r.dk_index, col] = val
-            if col == "mean" and "median" not in set(ov.loc[ov["dk_index"] == r.dk_index, "field"]):
-                t.loc[r.dk_index, "median"] = val
             if col == "status":
                 t.loc[r.dk_index, "p_play"] = _p_play(val, "", params)
             t.loc[r.dk_index, "override_flag"] = True
+
+    # Outcome distributions.
+    sim = None
+    if simulate_outcomes and t["mean"].notna().any():
+        sim = simulate(t.assign(dk_index=t.index), params, sport.scoring_cfg, n_sims, seed, dst_detail)
+        s = sim.summary.set_index("dk_index")
+        for c in ("median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp"):
+            if c in s:
+                t.loc[s.index, c] = s[c]
+        median_ov = ov[ov["field"] == "median"] if overrides is not None else pd.DataFrame()
+        for r in median_ov.itertuples():
+            t.loc[r.dk_index, "median"] = float(r.value)
+    else:
+        t["median"] = t["mean"]
+        t["p10"] = t.get("floor", np.nan)
+        t["p90"] = t.get("ceiling", np.nan)
+    out_rows = t["p_play"].fillna(1.0) <= 0
+    for c in ("mean", "median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp"):
+        if c in t:
+            t.loc[out_rows, c] = 0.0
+    for stat, col in (("pass_yds", "p_300_pass"), ("rush_yds", "p_100_rush"), ("rec_yds", "p_100_rec")):
+        if col not in t:
+            t[col] = np.nan
+
+    # Ownership: published sources first, v1 heuristic for anything missing.
+    t["own_gpp"] = t.get("ownership", np.nan)
+    t["own_cash"] = t.get("cash_ownership", np.nan)
+    t["own_cpt"] = t.get("cpt_ownership", np.nan)
+    pool = t["mean"].notna() & (t["mean"] > 0)
+    if mode == "classic":
+        for col, fld in (("own_gpp", "gpp"), ("own_cash", "cash")):
+            if t.loc[pool, col].isna().all():
+                t.loc[pool, col] = classic_ownership(t[pool], params, fld)
+                warnings.append(f"{col}: v1 heuristic estimate (directional)")
+    else:
+        if t.loc[pool, "own_cpt"].isna().all():
+            cpt, flex = showdown_ownership(t[pool], params, "gpp")
+            t.loc[pool, "own_cpt"], t.loc[pool, "own_flex"] = cpt, flex
+            warnings.append("own_cpt/own_flex: v1 heuristic estimate (directional)")
 
     try:
         t["role"] = sport.roles(t.assign(median=t["median"].fillna(0))).to_numpy()
     except Exception:  # roles need a median; never block publishing on a label
         t["role"] = t["position"]
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    ihash = _hash_inputs([salaries, odds, injuries, overrides, history, actuals] + [s.path for s in sources])
+    ihash = _hash_inputs([salaries, odds, injuries, overrides, history, actuals, props, weather, dst_inputs]
+                         + [s.path for s in sources])
     t["updated_at"], t["input_hash"], t["seed"] = now, ihash, seed
-    t["is_dome"], t["wind_mph"], t["precip"] = np.nan, np.nan, np.nan
 
     cols = SCHEMA_IDENTITY + SCHEMA_STATS + SCHEMA_DST + SCHEMA_K + SCHEMA_POINTS + SCHEMA_OWN + SCHEMA_META
     for c in cols:
         if c not in t.columns:
             t[c] = np.nan
-    table = t[cols + ["floor", "ceiling"] if "floor" in t else cols].copy()
-    if "floor" not in table:
-        table["floor"], table["ceiling"] = np.nan, np.nan
+    extra = [c for c in ("floor", "ceiling") if c in t]
+    table = t[cols + extra].copy()
+    for c in ("floor", "ceiling"):
+        if c not in table:
+            table[c] = np.nan
     table = table.loc[:, ~table.columns.duplicated()]
 
+    comps = sorted(rows["component"].unique()) if len(rows) else []
     log = {"updated_at": now, "input_hash": ihash, "seed": seed, "sport": sport.name, "mode": mode,
-           "sources": [s.name for s in sources], "weight_method": weight_method,
-           "weights": weights, "median_is_mean": True, "players": int(table["mean"].notna().sum()),
+           "sources": [s.name for s in sources], "components": comps, "weight_method": weight_method,
+           "weights": weights, "median_from_sims": sim is not None,
+           "n_sims": int(sim.sims.shape[0]) if sim is not None else 0,
+           "players": int(table["mean"].notna().sum()),
            "uncalibrated_parameters": params.uncalibrated(), "warnings": warnings}
-    return ProjectionRun(table, team_consistency(table), log, warnings)
+    run = ProjectionRun(table, team_consistency(table), log, warnings)
+    run.sims = sim
+    return run
 
 
 def lineup_csv(table: pd.DataFrame) -> pd.DataFrame:
@@ -193,10 +275,12 @@ def lineup_csv(table: pd.DataFrame) -> pd.DataFrame:
     t = table[table["mean"].notna()]
     out = pd.DataFrame({
         "name": t["name"].str.strip(), "team": t["team"], "position": t["position"],
-        "median": t["median"].round(3), "floor": t["floor"], "ceiling": t["ceiling"],
+        "median": t["median"].round(3),
+        "floor": t["p10"].where(t["p10"].notna(), t["floor"]), "ceiling": t["p90"].where(t["p90"].notna(), t["ceiling"]),
         "ownership": t["own_gpp"], "cash_ownership": t["own_cash"], "cpt_ownership": t["own_cpt"],
         "team_total": t["team_total"], "game_total": t["game_total"], "spread": t["spread"],
         "status": np.where(t["p_play"] <= 0, "O", t["status"].fillna("")),
+        "p_play": t["p_play"],
     })
     num = out.select_dtypes("number").columns
     out[num] = out[num].round(4)
@@ -213,6 +297,11 @@ def publish(run: ProjectionRun, out_dir: str | Path) -> dict[str, Path]:
     tbl.to_parquet(paths["parquet"], index=False)
     lineup_csv(run.table).to_csv(paths["csv"], index=False)
     run.team_check.to_csv(paths["team_check"], index=False)
+    sim = getattr(run, "sims", None)
+    if sim is not None:
+        paths["sims"] = out / "sims.npz"
+        ids = run.table.loc[sim.index, "dk_id"].astype(str).to_numpy()
+        np.savez_compressed(paths["sims"], sims=sim.sims, dk_id=ids)
     paths["log"].write_text(json.dumps(run.log, indent=2, default=str))
     return paths
 
@@ -227,11 +316,17 @@ def main(argv=None) -> None:
     ap.add_argument("--overrides")
     ap.add_argument("--history", help="historical source projections (for inverse-MAE weights)")
     ap.add_argument("--actuals", help="historical actuals (for inverse-MAE weights)")
+    ap.add_argument("--props", help="props.csv (book,name,team,market,line,over_odds,under_odds)")
+    ap.add_argument("--weather", help="weather.csv (team,wind_mph,precip,dome)")
+    ap.add_argument("--dst-inputs", help="dst_inputs.csv (team rates)")
+    ap.add_argument("--n-sims", type=int, default=None)
+    ap.add_argument("--no-sims", action="store_true")
     ap.add_argument("--seed", type=int, default=20261013)
     ap.add_argument("--out", default="data/published")
     a = ap.parse_args(argv)
     run = build_projections(a.salaries, load_source_specs(a.sources), a.sport, a.odds, a.injuries, a.overrides,
-                            a.history, a.actuals, a.seed)
+                            a.history, a.actuals, a.seed, props=a.props, weather=a.weather,
+                            dst_inputs=a.dst_inputs, simulate_outcomes=not a.no_sims, n_sims=a.n_sims)
     paths = publish(run, a.out)
     for w in run.warnings:
         print("WARN", w)

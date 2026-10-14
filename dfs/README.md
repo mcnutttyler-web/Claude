@@ -61,15 +61,20 @@ uncalibrated parameters. `team_check.csv` compares each team's projected offensi
 | `sources.py` | importers: points sources, stat-line sources (scored with DK rules), injuries → p_play, overrides, history |
 | `blend.py` | source weights within a component, then model/market/consensus component weights; confidence |
 | `backtest.py` | FFA-protocol pool, MAE/RMSE/bias/weekly-MAE CV/Spearman/calibration slope, walk-forward inverse-MAE |
-| `publish.py` | orchestration and outputs |
+| `market.py` | props: power de-vig (multiplicative fallback), line→median→mean, alt-line CDFs (PCHIP + Normal tails), TD/INT λ (catches "over 1.5" TD lines) |
+| `dst.py` | DST model: points allowed ~ Normal(opp implied, 9) over DK tiers + shrunk sack/INT rates |
+| `weather.py` | wind/rain multipliers for outdoor games |
+| `distributions.py` | 10k-sim Monte Carlo with game, team-pass, target-share (zero-sum) and team-rush shocks; Questionable mixtures with teammate redistribution; coverage + dispersion calibration |
+| `ownership.py` | v1 softmax ownership (GPP, cash, Showdown CPT/FLEX) normalized to 900% / 100%+500% |
+| `publish.py` | orchestration and outputs (`sims.npz` holds the simulated outcome matrix) |
 
 Stat-line sources are scored with `expected_score`, which prices the 300/100/100 bonuses and the DST
 points-allowed tiers by probability. Scoring a mean stat line directly would mis-price those nonlinear pieces.
 
 Projection phases:
 - [x] **P1:** CSV importers, implied totals, consensus blend (inverse-MAE), overrides, publish, backtest harness.
-- [ ] P2: props model (power de-vig, alt-line CDFs, TD λ), Questionable mixtures, weather, DST, Monte Carlo
-  distributions, ownership v1.
+- [x] **P2:** props model (power de-vig, alt-line CDFs, TD λ), Questionable mixtures, weather, DST, Monte Carlo
+  distributions with calibration, ownership v1. Add `--props`, `--weather`, `--dst-inputs`, `--n-sims` to publish.
 - [ ] P3: bottom-up nflverse model, learned vacated-usage table, learned/stacked blend weights, recalibration.
 - [ ] P4: ownership v2, kickers/Showdown, NBA adapter.
 

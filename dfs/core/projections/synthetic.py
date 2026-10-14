@@ -20,11 +20,12 @@ def stat_line(pos: str, pts: float, rng: np.random.Generator, opp_total: float =
     """A plausible MEAN stat line whose linear DK score is ~pts (bonuses excluded)."""
     pts = max(pts, 0.5)
     if pos == "QB":
-        ptd = 0.068 * pts
-        rush = 2.0 + 0.4 * pts
+        ptd = 0.09 * pts
+        rush = 1.1 * pts
+        rtd = 0.01 * pts
         ints = 0.75
-        pyd = max(0.0, (pts - 4 * ptd + ints - 0.1 * rush - 0.2) / 0.04)
-        return {"pass_yds": pyd, "pass_td": ptd, "int": ints, "rush_yds": rush, "rush_td": 0.02, "fumble_lost": 0.2}
+        pyd = max(0.0, (pts - 4 * ptd + ints - 0.1 * rush - 6 * rtd + 0.2) / 0.04)
+        return {"pass_yds": pyd, "pass_td": ptd, "int": ints, "rush_yds": rush, "rush_td": rtd, "fumble_lost": 0.2}
     if pos == "RB":
         rtd = 0.03 * pts
         rec = 0.14 * pts
@@ -92,6 +93,49 @@ def live_inputs(out_dir: str | Path, seed: int = 7) -> Path:
     qb = p[p["position"] == "QB"].iloc[0]
     pd.DataFrame([{"id": qb["id"], "name": qb["name"], "team": qb["team"], "field": "mean", "value": 25.0,
                    "note": "example manual override"}]).to_csv(out / "overrides.csv", index=False)
+    # Props (fictional prices): QBs pass yds/TD/INT, RB rush yds, WR/TE rec yds + receptions, anytime TD;
+    # the top WR also gets an alt-line ladder.
+    from scipy.stats import norm as _n
+    props = []
+
+    def price(p):                     # fair prob -> American odds with ~4.5% vig per side
+        q = min(max(p * 1.045, 0.02), 0.97)
+        return round(-100 * q / (1 - q)) if q >= 0.5 else round(100 * (1 - q) / q)
+
+    for r in p.itertuples():
+        nm, tm = r.name.strip(), r.team
+        if r.rank != 1 and r.position != "WR":
+            continue
+        line = stat_line(r.position, r.median, rng)
+        for mkt in {"QB": ["pass_yds"], "RB": ["rush_yds"], "WR": ["rec_yds", "rec"], "TE": ["rec_yds", "rec"]}.get(
+                r.position, []):
+            mu = line[mkt]
+            ln = round(mu * 2) / 2 - 0.5
+            sd = {"pass_yds": 70, "rush_yds": 28, "rec_yds": 28, "rec": 1.9}[mkt]
+            po = float(_n.sf(ln, mu, sd))
+            for book in ("draftkings", "fanduel"):
+                props.append({"book": book, "name": nm, "team": tm, "market": mkt, "line": ln,
+                              "over_odds": price(po), "under_odds": price(1 - po)})
+        if r.position == "QB":
+            props.append({"book": "draftkings", "name": nm, "team": tm, "market": "pass_td", "line": 1.5,
+                          "over_odds": price(0.45), "under_odds": price(0.55)})
+            props.append({"book": "draftkings", "name": nm, "team": tm, "market": "int", "line": 0.5,
+                          "over_odds": price(0.52), "under_odds": price(0.48)})
+        elif r.position in ("RB", "WR", "TE"):
+            pt = 1 - np.exp(-(0.03 * r.median if r.position == "RB" else 0.028 * r.median))
+            props.append({"book": "draftkings", "name": nm, "team": tm, "market": "anytime_td", "line": 0.5,
+                          "over_odds": price(pt), "under_odds": ""})
+    top = p[p["position"] == "WR"].sort_values("median").iloc[-1]
+    mu = stat_line("WR", top["median"], rng)["rec_yds"]
+    for ln in (mu - 30, mu - 15, mu, mu + 15, mu + 30):
+        ln = round(ln) + 0.5
+        props.append({"book": "fanduel", "name": top["name"].strip(), "team": top["team"], "market": "rec_yds",
+                      "line": ln, "over_odds": price(float(_n.sf(ln, mu, 30))), "under_odds": price(float(_n.cdf(ln, mu, 30)))})
+    pd.DataFrame(props).to_csv(out / "props.csv", index=False)
+    games = p.drop_duplicates(["away", "home"])
+    pd.DataFrame({"team": games["home"], "wind_mph": [6, 18, 9, 22, 4, 12][:len(games)],
+                  "precip": ["", "", "rain", "", "", ""][:len(games)],
+                  "dome": ["N", "N", "N", "N", "Y", "N"][:len(games)]}).to_csv(out / "weather.csv", index=False)
     spec = {"sources": [
         {"name": "ffa_avg", "path": "ffa_avg.csv", "kind": "points", "component": "consensus"},
         {"name": "dff", "path": "dff.csv", "kind": "points", "component": "consensus"},

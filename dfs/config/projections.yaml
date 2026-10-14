@@ -44,6 +44,10 @@ nfl:
     cash: {value: 3.0, calibrated: false, source: "x salary/1000"}
     gpp:  {value: 4.0, calibrated: false, source: "x salary/1000"}
 
+  questionable:
+    redistribute_frac: {value: 0.80, calibrated: false,
+                        source: "share of an inactive player's points moved to same-group teammates (45% next man + 35% others); 20% lost"}
+
   vegas:
     book_weights: {value: {pinnacle: 2.0, circa: 2.0, default: 1.0}, calibrated: false,
                    source: "Pinnacle/Circa treated as sharp anchors; consensus of books otherwise"}
@@ -61,6 +65,36 @@ nfl:
   props:                                    # P2
     devig_method: {value: power, fallback: multiplicative, calibrated: false,
                    source: "arXiv 2604.17194: fitted power beta 1.06-1.15 for all 5 books; no support for Shin"}
+    one_sided_margin: {value: 0.07, calibrated: false,
+                       source: "assumed vig on a one-sided price (e.g. anytime TD 'yes' only); DK props ~8-15% two-way"}
+    sigma_coef: {value: {pass_yds: 4.4, pass_att: 1.15, completions: 1.1, rush_yds: 3.6, rush_att: 1.15,
+                         rec: 0.9, rec_yds: 3.9}, calibrated: false,
+                 source: "sigma = coef x sqrt(line); starting guesses - fit to residuals of actual vs line"}
+    skew_frac_of_sigma: {value: {pass_yds: 0.08, pass_att: 0.0, completions: 0.0, rush_yds: 0.15, rush_att: 0.05,
+                                 rec: 0.08, rec_yds: 0.15}, calibrated: false,
+                         source: "mean - median as a fraction of sigma (right skew); replace with fitted table"}
+    book_weights: {value: {pinnacle: 2.0, circa: 2.0, default: 1.0}, calibrated: false,
+                   source: "props rarely have a sharp anchor; consensus of books preferred"}
+    alt_line_min: {value: 3, calibrated: true, source: "build prompt §3.6: fit a CDF when >=3 alt lines exist"}
+
+  distributions:                            # P2 Monte Carlo
+    n_sims: {value: 10000, calibrated: true, source: "build prompt §3.8"}
+    loading: {value: {game: 0.45, qb_pass: 0.60, catcher_pass: 0.38, share: 0.75, team_rush: 0.30}, calibrated: false,
+              source: "factor loadings: game shock, team pass shock (QB vs pass catchers), zero-sum target-share shock among a team's pass catchers (makes WR-WR ~0 while QB-WR ~0.35-0.40), team rush shock"}
+    td_shock_scale: {value: 0.35, calibrated: false, source: "lognormal multiplier on TD lambda per unit team shock"}
+    stat_cv: {value: {pass_yds: 0.30, pass_att: 0.18, completions: 0.22, rush_yds: 0.55, rush_att: 0.35,
+                      rec: 0.45, rec_yds: 0.65, int: 1.0}, calibrated: false,
+              source: "default stat-level CVs when no prop sigma exists"}
+    points_cv: {value: {QB: 0.35, RB: 0.50, WR: 0.60, TE: 0.65, DST: 0.80, K: 0.55}, calibrated: false,
+                source: "fallback for points-only players (shifted lognormal)"}
+    points_min: {value: {QB: -2, RB: -2, WR: -2, TE: -2, DST: -4, K: -1}, calibrated: true,
+                 source: "DK scoring floor for practical purposes"}
+    dispersion_scale: {value: {QB: 1.0, RB: 1.0, WR: 1.0, TE: 1.0, DST: 1.0, K: 1.0}, calibrated: false,
+                       source: "multiplies all spreads; fit so ~10% of outcomes land above p90 / below p10"}
+    dst_rates: {value: {sacks_per_dropback: 0.068, int_per_att: 0.024, fumbles_lost_per_game: 0.55,
+                        def_td_per_game: 0.12, safety_per_game: 0.03, block_per_game: 0.05}, calibrated: false,
+                source: "league-average base rates; refit each season from nflverse"}
+    dst_default_dropbacks: {value: 36, calibrated: false, source: "league-average opponent dropbacks"}
 
   environment:                              # P3
     plays_halflife: {value: 4, calibrated: false, source: "build prompt §3.1"}
@@ -92,6 +126,9 @@ nfl:
     wind_15_20: {value: {pass_yds_mult: 0.90}, calibrated: false, source: "betting-media summaries"}
     wind_20_plus: {value: {pass_yds_mult: 0.85, fg_range_yds: -7, fg_make_pts: -6}, calibrated: false, source: "Covers"}
     rain_fg: {value: {at_40: -4, at_50: -6}, calibrated: false, source: "build prompt §3.1"}
+    points_share_passing: {value: {QB: 0.45, RB: 0.15, WR: 0.80, TE: 0.80}, calibrated: false,
+                           source: "share of DK points tied to passing yards; scales the pass-yds multiplier for points-only players"}
+    rush_points_share: {value: {QB: 0.15, RB: 0.70}, calibrated: false, source: "share of points from rushing volume"}
 
   dst:                                      # P2
     opp_score_sigma: {value: 9.0, calibrated: false, source: "fantasytools.ai DST recipe"}
@@ -107,6 +144,13 @@ nfl:
     showdown_totals: {value: {CPT: 1.0, FLEX: 5.0}, calibrated: true, source: "DK showdown roster"}
     targets: {value: {mae_pp_ge10: 3.0, spearman: 0.8}, calibrated: false,
               source: "author targets; no independent NFL benchmark exists"}
+    beta: {value: {value: 1.0, points: 0.6, salary: 0.1, team_total: 0.25, value_rank: 0.3, free_square: 1.0},
+           calibrated: false, source: "v1 softmax feature weights on within-position z-scores"}
+    temperature: {value: {gpp: 1.0, cash: 1.6, cpt: 1.2}, calibrated: false,
+                  source: "cash fields concentrate harder on top value (higher temperature = sharper)"}
+    cap: {value: {gpp: 0.60, cash: 0.85}, calibrated: false, source: "max single-player ownership"}
+    free_square_pts_per_k: {value: 3.2, calibrated: false,
+                            source: "flag a player <= $4,500 projecting >= this many points per $1K"}
 
 api:
   odds_quota_stop_frac: {value: 0.8, calibrated: true, source: "build prompt §7"}
