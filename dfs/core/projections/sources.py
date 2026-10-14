@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from core.ingest import auto_column_mapping
+from core.ingest import auto_column_mapping, prepare_projection_frame
 from core.names import match_players
 from core.projections.params import Params
 from sports.base import SportConfig
@@ -88,7 +88,7 @@ def stat_mapping(columns: list[str]) -> dict[str, str]:
 def read_source(spec: SourceSpec, slate: pd.DataFrame, sport: SportConfig, params: Params,
                 buf=None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return (matched rows keyed by dk_index, unmatched rows)."""
-    raw = pd.read_csv(buf if buf is not None else spec.path)
+    raw = prepare_projection_frame(pd.read_csv(buf if buf is not None else spec.path))
     m = auto_column_mapping(list(raw.columns))
     m.update(spec.mapping or {})
     for c in ("name", "team", "position"):
