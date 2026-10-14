@@ -252,8 +252,11 @@ with tabs[3]:
         st.error("GPP needs projected ownership (map an ownership column on the Projections tab).")
     else:
         presets = {k: v for k, v in sport.preset("gpp").items() if isinstance(v, dict) and "lambda_log_own" in v}
+        if b.mode == "showdown" and sport.preset("showdown").get("gpp"):
+            presets = {"showdown": sport.preset("showdown")["gpp"]}
         c1, c2, c3 = st.columns(3)
-        pre = c1.selectbox("Preset", list(presets), format_func=lambda k: presets[k].get("label", k), index=1)
+        pre = c1.selectbox("Preset", list(presets), format_func=lambda k: presets[k].get("label", k),
+                           index=min(1, len(presets) - 1))
         tmpl = {p.stem: p for p in template_paths()}
         gpp_keys = [k for k in tmpl if not load_contest(tmpl[k]).is_cash]
         ck = c2.selectbox("Contest", gpp_keys)
@@ -283,15 +286,68 @@ with tabs[3]:
             if run.leverage is not None:
                 st.markdown("Leverage (optimal% − ownership)"); st.dataframe(run.leverage.head(30), hide_index=True)
 
-for t, text in ((6, "Late swap (cash 6.4 + GPP) — Phase 4."),
-                (8, "Tracking, calibration and flashback — Phase 5.")):
+with tabs[6]:
+    st.subheader("Late swap")
+    st.caption("Locks every player whose game has started as of the time below. Cash entries maximise "
+               "P(beat the line | locked) — ahead → lean chalk, behind → add variance; GPP entries maximise "
+               "conditional expected payout. Only lineup cells change in the exported DKEntries.csv.")
+    b = ss.get("build")
+    if b is None or not b.ready:
+        st.info("Load and fully match projections first.")
+    else:
+        from core.lateswap import guess_contest_template, late_swap_entries
+        raw = file_or_sample("Upload current DKEntries.csv (download it from DK's Edit Entries page)",
+                             "DKEntries.csv", "ls_entries")
+        c1, c2 = st.columns(2)
+        d = c1.date_input("As of (date, ET)", value=pd.to_datetime(b.slate["lock_time"]).min().date())
+        tm = c2.time_input("As of (time, ET)", value=pd.Timestamp("2026-10-18 14:00").time())
+        act_up = st.file_uploader("Actual scores so far (optional: id or name, points)", type=["csv"], key="ls_act")
+        if raw:
+            ef = read_entries(raw)
+            ents = ef.entries
+            tmpl = {p.stem: p for p in template_paths()}
+            cmap = {}
+            for cid, name in ents.groupby("Contest ID")["Contest Name"].first().items():
+                g = guess_contest_template(name)
+                cmap[cid] = st.selectbox(f"{name} ({cid})", list(tmpl), index=list(tmpl).index(g), key=f"ls_{cid}")
+            if st.button("Run late swap", type="primary"):
+                from zoneinfo import ZoneInfo
+                as_of = pd.Timestamp.combine(d, tm).tz_localize(ZoneInfo("America/New_York"))
+                actual = None
+                if act_up is not None:
+                    a = pd.read_csv(io.BytesIO(act_up.getvalue()))
+                    a.columns = [c.lower() for c in a.columns]
+                    key = "id" if "id" in a else "name"
+                    m = b.slate.set_index("name")["id"].astype(str).to_dict()
+                    actual = {(str(r[key]) if key == "id" else m.get(r[key], "")): float(r["points"])
+                              for _, r in a.iterrows()}
+                if "sims" not in ss:
+                    ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]),
+                                                b.mode)
+                own = b.slate["ownership"].fillna(0).to_numpy() if "ownership" in b.slate else None
+                if own is None:
+                    st.error("Late swap needs projected ownership for the field model.")
+                    st.stop()
+                with st.spinner("Fitting fields and re-solving open slots..."):
+                    fields = {"cash": fit_field(b.slate, sport, own, 2500, "cash", b.mode),
+                              "gpp": fit_field(b.slate, sport, own, 3000, "gpp", b.mode)}
+                    contests = {cid: load_contest(tmpl[k]) for cid, k in cmap.items()}
+                    assign, rep = late_swap_entries(sport, b.slate, ss["sims"].scores, ef, contests, fields, as_of,
+                                                    actual, b.mode)
+                st.dataframe(rep, hide_index=True)
+                st.download_button("Download swapped DKEntries.csv", write_entries(ef, assign),
+                                   file_name="DKEntries_lateswap.csv")
+
+for t, text in ((8, "Tracking, calibration and flashback — Phase 5."),):
     with tabs[t]:
         st.info(text)
 
 with tabs[5]:
     st.subheader("Showdown")
-    st.caption("Load a Showdown DKSalaries file on the Slate tab — the Cash tab then builds CPT + 5 FLEX lineups "
-               "(CPT = 1.5x salary and points). Showdown-specific stacking rules arrive in Phase 4.")
+    st.caption("Load a Showdown DKSalaries file on the Slate tab. Cash, GPP and Late Swap then run in Showdown "
+               "mode: CPT = 1.5x salary and points, field CPT picks come from cpt_ownership (separate from FLEX).")
+    st.markdown(f"Showdown rules {CALIBRATE}")
+    st.json(sport.preset("showdown"))
 
 # ------------------------------------------------------------------- Export
 with tabs[7]:

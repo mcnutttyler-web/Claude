@@ -93,7 +93,7 @@ class LineupSampler:
 
 
 def sample_batch(sampler: "LineupSampler", rng, W: np.ndarray, forced: list[list[int] | None],
-                 min_salary: float = 0.0) -> np.ndarray:
+                 min_salary: float = 0.0, W_slot: dict[int, np.ndarray] | None = None) -> np.ndarray:
     """Vectorized: one lineup per row of W (B x n_players weights). Returns (B x roster) indices, -1 rows = failed."""
     sp, spec = sampler, sampler.spec
     B, R = W.shape[0], spec.roster_size
@@ -123,7 +123,7 @@ def sample_batch(sampler: "LineupSampler", rng, W: np.ndarray, forced: list[list
         pool = sp.pools[k]
         afford = sp.sal[k][pool][None, :] <= (spec.salary_cap - spent - reserve)[:, None] + 1e-9
         mask = afford & ~used[:, pool]
-        w = W[:, pool] * mask
+        w = (W_slot or {}).get(k, W)[:, pool] * mask
         tot = w.sum(1)
         failed |= need & (tot <= 0)          # nothing the entrant would play fits -> resample that entrant
         ok = need & ~failed
@@ -143,7 +143,12 @@ def sample_batch(sampler: "LineupSampler", rng, W: np.ndarray, forced: list[list
             c = np.sort(codes[np.clip(chosen, 0, None)], axis=1)
             distinct = 1 + (np.diff(c, axis=1) != 0).sum(1)
             failed |= distinct < need_n
-    if spec.max_per_team is not None or spec.min_per_team:
+    if spec.min_per_team:
+        codes = pd.factorize(sp.teams)[0]
+        tc = codes[np.clip(chosen, 0, None)]
+        for t in np.unique(codes):
+            failed |= (tc == t).sum(1) < spec.min_per_team
+    if spec.max_per_team is not None:
         for b in np.flatnonzero(~failed):
             if not is_valid(Lineup(tuple(chosen[b]), spec.name), sp.slate, spec):
                 failed[b] = True
@@ -177,11 +182,18 @@ class FieldSample:
         return sparse.csr_matrix((np.array(vals, dtype=np.float32), (rows, cols)),
                                  shape=(self.n_players, len(self.lineups)))
 
+    @property
+    def n_own(self) -> int:
+        """Length of the ownership vector: n players, or 2n in Showdown ([FLEX..., CPT...])."""
+        return self.n_players * (2 if self.spec.captain_slot else 1)
+
     def binary_incidence(self) -> sparse.csr_matrix:
-        rows = [p for lu in self.lineups for p in lu.players]
+        cap = [s.name == self.spec.captain_slot for s in self.spec.slots]
+        n = self.n_players
+        rows = [p + (n if c else 0) for lu in self.lineups for p, c in zip(lu.players, cap)]
         cols = [m for m, lu in enumerate(self.lineups) for _ in lu.players]
         return sparse.csr_matrix((np.ones(len(rows), dtype=np.float32), (rows, cols)),
-                                 shape=(self.n_players, len(self.lineups)))
+                                 shape=(self.n_own, len(self.lineups)))
 
     def ownership(self, weighted: bool = True) -> np.ndarray:
         A = self.binary_incidence()
@@ -197,7 +209,7 @@ class FieldSample:
 
     def entropy(self, slate: pd.DataFrame) -> float:
         """Mean per-position selection entropy (nats). Lower = more concentrated field."""
-        own = self.ownership()
+        own = self.ownership()[: self.n_players]
         out = []
         for pos, idx in slate.groupby("position").indices.items():
             f = own[idx]
@@ -244,11 +256,19 @@ def generate_field(slate: pd.DataFrame, sport: SportConfig, own: np.ndarray, n: 
     cfg = cfg or field_config(sport, kind)
     kappa = float(cfg.get("kappa", 200))
     q = float(cfg.get("stacker_q", 0.0))
-    floor = float(cfg.get("salary_floor", 0))
+    floor = float(cfg.get("showdown_salary_floor" if spec.captain_slot else "salary_floor", 0))
     cons_p = float(cfg.get("consensus_p", 0.0)) if consensus else 0.0
     max_piv = int(cfg.get("max_pivots", 2))
     sampler = sampler or LineupSampler(slate, spec)
     own = np.clip(np.asarray(own, dtype=float), 1e-7, None)
+    n_pl = len(slate)
+    cpt_own = None
+    if spec.captain_slot is not None:
+        if len(own) == 2 * n_pl:
+            own, cpt_own = own[:n_pl], own[n_pl:]
+        else:                                   # no CPT ownership given: proportional to FLEX (default — calibrate)
+            cpt_own = own / own.sum()
+    cap_k = [k for k, sl in enumerate(spec.slots) if sl.name == spec.captain_slot]
     groups = list(slate.groupby("position").indices.values())
     stack_fn = sport.field_stack if mode == "classic" else None
     batch_fn = sport.field_stack_batch if mode == "classic" else None
@@ -269,12 +289,16 @@ def generate_field(slate: pd.DataFrame, sport: SportConfig, own: np.ndarray, n: 
         for idx in groups:
             tot = own[idx].sum()
             W[:, idx] = rng.dirichlet(kappa * own[idx] / tot, size=Bd) * tot
+        W_slot = None
+        if cpt_own is not None:
+            Wc = rng.dirichlet(kappa * cpt_own / cpt_own.sum(), size=Bd) * cpt_own.sum()
+            W_slot = {k: Wc for k in cap_k}
         stacker = rng.random(Bd) < q if stack_fn else np.zeros(Bd, dtype=bool)
         if batch_fn is not None:
             forced = batch_fn(slate, rng, W, cfg, stacker)
         else:
             forced = [stack_fn(slate, rng, W[b], cfg) if stacker[b] else None for b in range(Bd)]
-        res = sample_batch(sampler, rng, W, forced, floor)
+        res = sample_batch(sampler, rng, W, forced, floor, W_slot)
         out.extend(Lineup(tuple(int(x) for x in row), spec.name) for row in res if row[0] >= 0)
     out = out[:n]
     return FieldSample(out, spec, len(slate), kind, own, {"attempts": attempts, "cfg": cfg})
@@ -326,7 +350,11 @@ def fit_field(slate: pd.DataFrame, sport: SportConfig, target_own: np.ndarray, n
     best.info["max_own_error_unweighted"] = float(np.max(np.abs(best.ownership(weighted=False) - target)))
     best.weights = rake_weights(best, target)
     best_err = float(np.max(np.abs(best.ownership() - target)))
-    implied = float((target * slate["salary"].to_numpy(float)).sum())
+    sal = slate["salary"].to_numpy(float)
+    if len(target) == 2 * len(slate):
+        cs = slate["cpt_salary"].to_numpy(float) if "cpt_salary" in slate else sal * 1.5
+        sal = np.r_[sal, cs]
+    implied = float((target * sal).sum())
     best.info.update({"max_own_error": best_err, "iterations": it + 1, "implied_avg_salary": implied,
                       "feasible_target": implied <= sport.mode(mode).salary_cap})
     return best

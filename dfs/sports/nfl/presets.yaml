@@ -47,6 +47,21 @@ gpp:
     shortlist: 25                # candidates re-scored exactly per greedy step
     approx_sims: null            # sims used to rank the shortlist (null = all; ~2000 speeds up 150-max)
 
+showdown:                        # Section 8 — default — calibrate
+  cash:
+    min_salary: 48000
+    rules: {sd_k_dst_max: 2, sd_qb_cpt_catcher: true, sd_kdst_cpt_penalty: 3.0, sd_kdst_cpt_total: 40,
+            block_qb_vs_opp_dst: true}
+  gpp:
+    label: "Showdown GPP"
+    lambda_log_own: 1.0
+    cum_own_band: null
+    product_own: {min_players_under: 1, under_pct: 0.10}
+    rules: {sd_k_dst_max: 2, sd_qb_cpt_catcher: true, sd_cpt_bring_back: true, sd_kdst_cpt_penalty: 3.0,
+            sd_kdst_cpt_total: 40, sd_wrte_cpt_qb_penalty: 2.0}
+    uniqueness_U: 1
+    min_salary: 46000
+
 field:                           # field models (Section 5.3) — default — calibrate
   gpp:
     kappa: 200
@@ -54,6 +69,7 @@ field:                           # field models (Section 5.3) — default — ca
     second_catcher_p: 0.4
     bring_back_p: 0.35
     salary_floor: 49200
+    showdown_salary_floor: 44000
     consensus_p: 0.0
   cash:
     kappa: 600
@@ -61,6 +77,7 @@ field:                           # field models (Section 5.3) — default — ca
     second_catcher_p: 0.4
     bring_back_p: 0.35
     salary_floor: 49700
+    showdown_salary_floor: 46000
     consensus_p: 0.5             # share of entrants drawn from consensus_cash.csv (+0-2 value pivots)
     sharp_consensus_p: 0.8       # H2H opponent labelled "sharp"
     max_pivots: 2

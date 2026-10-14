@@ -46,3 +46,39 @@ def entries_bytes(players):
         [("NFL $10 Double Up, Sunday Main", "180000001", "$10", 3),
          ("NFL $20 20-Max \"GPP\" [Mid-Field]", "180000002", "$20", 5)], NFL_HEADER, players,
     ).encode()
+
+
+def showdown_ownership(slate, target_salary=48500.0):
+    """Salary-consistent synthetic FLEX (sum 5) and CPT (sum 1) ownership for Showdown fixtures."""
+    import numpy as np
+    med = slate["median"].to_numpy(float)
+    sal = slate["salary"].to_numpy(float)
+    csal = slate["cpt_salary"].to_numpy(float)
+    z = (med - med.mean()) / med.std()
+
+    def own(g):
+        c = np.exp(1.8 * z - g * csal / 1000)
+        c = np.clip(c / c.sum(), 0, 0.35)
+        c = c / c.sum()
+        f = np.exp(1.2 * z - g * sal / 1000)
+        f = f / f.sum() * 5
+        for _ in range(100):                  # a player can't be CPT and FLEX at once: flex + cpt <= 0.95
+            cap = 0.95 - c
+            over = f > cap
+            if not over.any():
+                break
+            excess = (f[over] - cap[over]).sum()
+            f[over] = cap[over]
+            free = ~over
+            f[free] += excess * f[free] / f[free].sum()
+        return f, c
+
+    lo, hi = -2.0, 2.0
+    for _ in range(60):
+        g = (lo + hi) / 2
+        f, c = own(g)
+        if (f * sal).sum() + (c * csal).sum() > target_salary:
+            lo = g
+        else:
+            hi = g
+    return own((lo + hi) / 2)

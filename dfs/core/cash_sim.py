@@ -101,7 +101,7 @@ def generate_candidates(sport: SportConfig, slate: pd.DataFrame, mode: str = "cl
                         **overrides) -> tuple[list[Lineup], dict]:
     """Top-K by median, median/floor blends, fade pivots, consensus neighbours (Section 6.2.1)."""
     c = {**CASH["candidates"], **(cfg or {})}
-    settings = cash_settings(sport, **overrides)
+    settings = cash_settings(sport, mode, **overrides)
     spec = sport.mode(mode)
     med = slate["median"].to_numpy(float)
     flo = floor if floor is not None else (slate["floor"].fillna(slate["median"] * 0.5).to_numpy(float)

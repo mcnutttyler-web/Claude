@@ -24,6 +24,13 @@ def _opp_of(ctx, team: str) -> str | None:
 
 
 def build_constraints(ctx, opt: dict) -> None:
+    if ctx.spec.captain_slot is not None:
+        showdown_constraints(ctx, opt)
+        if opt.get("block_qb_vs_opp_dst"):
+            for d in ctx.players(positions=["DST"]):
+                for q in ctx.players(positions=["QB"], team=ctx.slate.at[d, "opp"]):
+                    ctx.add(ctx.xp[q] + ctx.xp[d] <= 1, "qb_vs_dst")
+        return
     slate = ctx.slate
     teams = list(dict.fromkeys(slate["team"]))
     qbs = ctx.players(positions=["QB"])
@@ -75,6 +82,8 @@ def build_constraints(ctx, opt: dict) -> None:
 
 def objective_terms(ctx, opt: dict) -> list:
     """Soft-penalize RB/WR/TE facing your own DST (the hard QB block is in build_constraints)."""
+    if ctx.spec.captain_slot is not None:
+        return showdown_objective(ctx, opt)
     pen = float(opt.get("soft_penalty_vs_opp_dst") or 0)
     if not pen:
         return []
@@ -191,3 +200,54 @@ def check_lineup(slate, players, opt: dict) -> list[str]:
             if pos[p] == "DST" and opp[p] in qb_teams:
                 errs.append("QB vs opposing DST")
     return errs
+
+
+# ------------------------------------------------------------------ Showdown (Section 8)
+def showdown_constraints(ctx, opt: dict) -> None:
+    """Hard Showdown rules (mode has a captain slot):
+        sd_k_dst_max         K + DST combined <= n (default 2)
+        sd_qb_cpt_catcher    CPT QB -> >= 1 own pass catcher
+        sd_cpt_bring_back    CPT QB/WR/TE -> >= 1 opposing QB/WR/TE
+    """
+    cap = ctx.spec.captain_slot
+    slate = ctx.slate
+    if opt.get("sd_k_dst_max") is not None:
+        ctx.add(ctx.sum_xp(ctx.players(positions=["K", "DST"])) <= int(opt["sd_k_dst_max"]), "sd_k_dst")
+    for i in ctx.players(positions=["QB", "WR", "TE"]):
+        xc = ctx.x.get((i, cap))
+        if xc is None:
+            continue
+        pos, team, opp = slate.at[i, "position"], slate.at[i, "team"], slate.at[i, "opp"]
+        if opt.get("sd_qb_cpt_catcher") and pos == "QB":
+            ctx.add(xc <= ctx.sum_xp(ctx.players(positions=["WR", "TE"], team=team)), "sd_qb_cpt")
+        if opt.get("sd_cpt_bring_back"):
+            ctx.add(xc <= ctx.sum_xp(ctx.players(positions=["QB", "WR", "TE"], team=opp)), "sd_bb")
+
+
+def showdown_objective(ctx, opt: dict) -> list:
+    """Soft Showdown rules:
+        sd_kdst_cpt_penalty  discourage K/DST at CPT unless game_total <= sd_kdst_cpt_total (default 40)
+        sd_wrte_cpt_qb_penalty  CPT WR/TE without own QB in FLEX
+    """
+    cap = ctx.spec.captain_slot
+    slate = ctx.slate
+    terms = []
+    pen = float(opt.get("sd_kdst_cpt_penalty") or 0)
+    tot_max = float(opt.get("sd_kdst_cpt_total", 40))
+    if pen:
+        for i in ctx.players(positions=["K", "DST"]):
+            gt = slate.at[i, "game_total"] if "game_total" in slate else None
+            if gt is not None and gt == gt and float(gt) <= tot_max:
+                continue
+            if (i, cap) in ctx.x:
+                terms.append(-pen * ctx.x[(i, cap)])
+    pen2 = float(opt.get("sd_wrte_cpt_qb_penalty") or 0)
+    if pen2:
+        for i in ctx.players(positions=["WR", "TE"]):
+            if (i, cap) not in ctx.x:
+                continue
+            qbs = ctx.players(positions=["QB"], team=slate.at[i, "team"])
+            z = ctx.new_var("sd_wrte", cat="Continuous", low=0)
+            ctx.add(z >= ctx.x[(i, cap)] - ctx.sum_xp(qbs), "sd_wrte")
+            terms.append(-pen2 * z)
+    return terms

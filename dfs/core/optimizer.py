@@ -249,10 +249,14 @@ class LineupILP:
         return Lineup(tuple(chosen[s.name].pop(0) for s in self.spec.slots), self.spec.name)
 
     # ----------------------------------------------------------------- solve
-    def _set_objective(self, values: np.ndarray) -> None:
+    def _set_objective(self, values: np.ndarray, slot_values: dict[str, np.ndarray] | None = None) -> None:
+        """values: per-player value (x the slot's points multiplier). slot_values: full per-player coefficient
+        overriding that rule for a named slot (e.g. a Showdown captain priced with CPT ownership)."""
         v = np.asarray(values, dtype=float)
+        sv = slot_values or {}
         terms = [
-            var * float(v[i]) * self.spec.slot_by_name(s).points_mult for (i, s), var in self.x.items()
+            var * (float(sv[s][i]) if s in sv else float(v[i]) * self.spec.slot_by_name(s).points_mult)
+            for (i, s), var in self.x.items()
         ]
         self.prob.setObjective(pulp.lpSum(terms) + pulp.lpSum(self.ctx.objective_extra))
 

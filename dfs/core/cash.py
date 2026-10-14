@@ -29,8 +29,9 @@ class CashResult:
     settings: dict = field(default_factory=dict)
 
 
-def cash_settings(sport: SportConfig, **overrides) -> dict:
-    preset = sport.preset("cash")
+def cash_settings(sport: SportConfig, mode: str = "classic", **overrides) -> dict:
+    sd = sport.preset("showdown").get("cash") if mode == "showdown" else None
+    preset = sd or sport.preset("cash")
     s = {"min_salary": preset.get("min_salary", 0), "rules": dict(preset.get("rules", {}))}
     for k, v in overrides.items():
         if v is not None:
@@ -43,7 +44,7 @@ def cash_settings(sport: SportConfig, **overrides) -> dict:
 
 def build_cash_ilp(sport: SportConfig, slate: pd.DataFrame, mode: str = "classic",
                    locks: Iterable[int] = (), excludes: Iterable[int] = (), **overrides) -> tuple[LineupILP, dict]:
-    s = cash_settings(sport, **overrides)
+    s = cash_settings(sport, mode, **overrides)
     ex = set(excludes) | set(hard_rule_excludes(slate, sport))
     ilp = LineupILP(sport, slate, mode, min_salary=s["min_salary"], locks=locks, excludes=ex, rules=s["rules"])
     return ilp, s

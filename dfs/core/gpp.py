@@ -42,7 +42,7 @@ class GPPSettings:
 
 
 def gpp_settings(sport: SportConfig, preset: str = "mid_20max", **ov) -> GPPSettings:
-    p = sport.preset("gpp", preset)
+    p = sport.preset("showdown").get("gpp") if preset == "showdown" else sport.preset("gpp", preset)
     if not p:
         raise ValueError(f"unknown GPP preset {preset}")
     po = p.get("product_own") or {}
@@ -68,6 +68,18 @@ def _own(slate: pd.DataFrame) -> np.ndarray:
 
 def objective_values(values: np.ndarray, own: np.ndarray, lam: float) -> np.ndarray:
     return np.asarray(values, dtype=float) - lam * np.log(np.clip(own, OWN_FLOOR, 1.0))
+
+
+def captain_values(values: np.ndarray, slate: pd.DataFrame, spec, lam: float) -> dict | None:
+    """Showdown: the captain coefficient is mult x points - lambda log(CPT ownership)."""
+    if spec.captain_slot is None:
+        return None
+    mult = spec.slot_by_name(spec.captain_slot).points_mult
+    if "cpt_ownership" in slate and slate["cpt_ownership"].notna().any():
+        co = slate["cpt_ownership"].fillna(0).to_numpy(float)
+    else:
+        co = _own(slate) / 5.0              # rough fallback: CPT share ~ FLEX share / 5 (default — calibrate)
+    return {spec.captain_slot: mult * np.asarray(values, dtype=float) - lam * np.log(np.clip(co, OWN_FLOOR, 1.0))}
 
 
 def build_gpp_ilp(sport: SportConfig, slate: pd.DataFrame, st: GPPSettings, mode: str = "classic",
@@ -113,7 +125,8 @@ def rules_generator(sport: SportConfig, slate: pd.DataFrame, st: GPPSettings, n:
     out: list[Lineup] = []
     sets: list[set] = []
     for _ in range(n):
-        ilp._set_objective(base - diversity * counts)
+        raw = slate["median"].to_numpy(float) if values is None else values
+        ilp._set_objective(base - diversity * counts, captain_values(raw - diversity * counts, slate, spec, st.lam))
         lu = None
         for _r in range(max_rounds):
             cand = ilp._solve_once()
@@ -153,7 +166,7 @@ def _solve_rows(rows: np.ndarray) -> list[tuple]:
     ilp, own, st = _W["ilp"], _W["own"], _W["st"]
     out = []
     for v in rows:
-        ilp._set_objective(objective_values(v, own, st.lam))
+        ilp._set_objective(objective_values(v, own, st.lam), captain_values(v, _W["slate"], ilp.spec, st.lam))
         lu = ilp._solve_once()
         if lu is not None:
             out.append(lu.players)
