@@ -176,7 +176,7 @@ def test_weather_buckets():
     assert multipliers(12, "", False, P)["pass_yds_mult"] == 0.93
     assert multipliers(17, "", False, P)["pass_yds_mult"] == 0.90
     m = multipliers(22, "rain", False, P)
-    assert m["pass_yds_mult"] == 0.85 and m["fg_range_yds"] == -7 and m["rain"] == 1.0
+    assert m["pass_yds_mult"] == 0.81 and m["rush_att_mult"] == 1.05 and m["fg_range_yds"] == -7 and m["rain"] == 1.0
     assert points_factor("WR", m, P) < points_factor("QB", m, P) < 1.0
 
 

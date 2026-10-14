@@ -50,6 +50,55 @@ def file_or_sample(label: str, sample_name: str, key: str):
     return None
 
 
+def own_projections_panel():
+    """Bottom-up public model (nflverse + Vegas), optionally blended 50/50 with a free consensus CSV."""
+    import tempfile
+    from core.projections.publish import build_projections, lineup_csv
+    from core.projections.sources import SourceSpec
+    st.caption("Vegas lines → team plays and pass rate → each player's target/carry share from nflverse "
+               "play-by-play → stat lines → DK points. Optional: blend 50/50 with a free consensus CSV "
+               "(e.g. DailyFantasyFuel), which also supplies spreads/totals and injury tags.")
+    badge("Model constants")
+    c1, c2, c3 = st.columns(3)
+    cons = c1.file_uploader("Consensus projections (optional, e.g. DFF cheat sheet)", type=["csv"], key="own_cons")
+    odds = c2.file_uploader("odds.csv (optional: book, away, home, spread_home, total)", type=["csv"], key="own_odds")
+    inj = c3.file_uploader("injuries.csv (optional: name, team, status[, practice])", type=["csv"], key="own_inj")
+    fetch = st.checkbox("Download latest nflverse data first (needs internet; cached for 12 h)", value=True)
+    if st.button("Build projections", type="primary"):
+        with tempfile.TemporaryDirectory() as d, st.spinner("Building projections (about 30 s)…"):
+            d = Path(d)
+            (d / "sal.csv").write_bytes(ss["sal_raw"])
+            sources = []
+            if cons is not None:
+                (d / "cons.csv").write_bytes(cons.getvalue())
+                sources = [SourceSpec(name="consensus", path=str(d / "cons.csv"))]
+            op = ip = None
+            if odds is not None:
+                op = d / "odds.csv"
+                op.write_bytes(odds.getvalue())
+            if inj is not None:
+                ip = d / "inj.csv"
+                ip.write_bytes(inj.getvalue())
+            try:
+                run = build_projections(d / "sal.csv", sources, sport, odds=op, injuries=ip, fetch_data=fetch)
+            except Exception as e:  # surface model problems instead of a stack trace
+                st.error(f"Could not build projections: {e}")
+                return ss.get("own_raw")
+            ss["own_raw"] = lineup_csv(run.table).to_csv(index=False).encode()
+            ss["own_run"] = run
+    run = ss.get("own_run")
+    if run is not None:
+        for w in run.warnings:
+            st.warning(w)
+        pm = run.log.get("public_model")
+        if pm:
+            st.success(f"Own model: {pm['players']} players on {pm['teams']} teams.")
+        with st.expander("Team volume (plays, pass rate, attempts, TDs per team)"):
+            st.dataframe(run.team_check, hide_index=True)
+        st.download_button("Download projections.csv", ss["own_raw"], "my_projections.csv", "text/csv")
+    return ss.get("own_raw")
+
+
 # ------------------------------------------------------------------ sidebar
 with st.sidebar:
     st.header("Setup")
@@ -70,6 +119,7 @@ with tabs[0]:
         try:
             sal, mode = read_dk_salaries(io.BytesIO(raw), sport)
             ss["salaries"], ss["mode"], ss["sal_hash"] = sal, mode, hashlib.sha256(raw).hexdigest()[:12]
+            ss["sal_raw"] = raw
             c1, c2, c3 = st.columns(3)
             c1.metric("Mode", mode.title())
             c2.metric("Players", len(sal))
@@ -88,7 +138,12 @@ with tabs[1]:
         st.info("Load DKSalaries first.")
     else:
         sample = "projections_showdown.csv" if ss["mode"] == "showdown" else "projections.csv"
-        raw = file_or_sample("Upload projections.csv", sample, "proj")
+        how = st.radio("Projections", ["Upload a projections CSV", "Build my own from public data"], horizontal=True,
+                       key="proj_how")
+        if how == "Upload a projections CSV":
+            raw = file_or_sample("Upload projections.csv", sample, "proj")
+        else:
+            raw = own_projections_panel()
         if raw:
             src = prepare_projection_frame(pd.read_csv(io.BytesIO(raw)))
             st.markdown("**Column mapping** — required: " + ", ".join(REQUIRED))

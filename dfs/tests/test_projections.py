@@ -61,7 +61,7 @@ def test_stat_source_uses_expected_bonus(nfl):
     e = nfl.expected_score({"pass_yds": 290}, disp)
     assert lin + 0.5 < e < lin + 3
     from scipy.stats import norm
-    p300 = norm.sf(299.5, 400, 0.30 * 400)
+    p300 = norm.sf(299.5, 400, disp["cv"]["pass_yds"] * 400)
     assert nfl.expected_score({"pass_yds": 400}, disp) == pytest.approx(16 + 3 * p300, abs=0.01)
     from sports.nfl import scoring
     probs = scoring.pa_tier_probs(21.0, 9.0, nfl.scoring_cfg["dst_points_allowed"])

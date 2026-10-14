@@ -119,6 +119,9 @@ def read_source(spec: SourceSpec, slate: pd.DataFrame, sport: SportConfig, param
         if c in df:
             v = pd.to_numeric(df[c].astype(str).str.rstrip("%"), errors="coerce")
             df[c] = v / 100.0 if v.max(skipna=True) > 1.0 else v
+    for c in ("team_total", "spread", "game_total"):
+        if c in m:
+            df[c] = pd.to_numeric(raw[m[c]], errors="coerce")
     for c in ("floor", "ceiling"):
         if c in df:
             df[c] = pd.to_numeric(df[c], errors="coerce")

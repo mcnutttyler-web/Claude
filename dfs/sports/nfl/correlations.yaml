@@ -1,23 +1,25 @@
-# NFL correlation prior — default — calibrate.
-# A synthesis of published values. Sources disagree; core/calibration.py refits these from history.
-# Published ranges (for reference, not used directly):
-#   QB–WR1        +0.31 to +0.53
-#   QB–RB1        +0.07 to +0.42   (contested)
-#   QB–opp DST    about -0.46
+# NFL correlation prior — default — calibrate. core/calibration.py refits these from your history.
+# Targets are the playbook's pooled nflverse estimates (docs/PROJECTION_PLAYBOOK.md §4.1, 2014-2025, raw r of
+# DK points; larger-sample and more conservative than older FantasyLabs-style figures):
+#   QB–WR1 +0.37 · QB–WR2 +0.30 · QB–TE1 +0.31 · QB–RB1 +0.07 · QB–opp QB +0.21 · QB–opp WR1 +0.15
+#   QB–opp DST −0.41 · RB1–opp DST −0.30 · RB1–own DST +0.10 · RB1–opp RB1 +0.10 · WR1–WR2 0.00 · cross-game 0
+# The game factor below adds loading² = 0.0225 to every same-game skill pair, so same-game skill values here
+# are the target minus 0.02. DST does not load on the game factor (no subtraction).
+# Conditioning on game total was found to be noise — pooled values only.
 # Role labels come from sports/nfl/roles.py. "WR" / "TE" / "RB" without a number matches any rank.
 # Lookup order: exact role pair, then position-generic pair. Pairs are symmetric.
 
 same_team:
-  QB|WR1: 0.40
-  QB|WR2: 0.32
-  QB|WR3: 0.22
-  QB|WR4: 0.12
-  QB|TE1: 0.30
-  QB|TE2: 0.12
-  QB|RB1: 0.10
-  QB|RB2: 0.05
-  WR|WR: -0.05
-  WR|TE: -0.05
+  QB|WR1: 0.35
+  QB|WR2: 0.28
+  QB|WR3: 0.20
+  QB|WR4: 0.10
+  QB|TE1: 0.29
+  QB|TE2: 0.10
+  QB|RB1: 0.05
+  QB|RB2: 0.03
+  WR|WR: -0.02
+  WR|TE: -0.04
   RB1|RB2: -0.15
   RB|RB: -0.10
   RB1|DST: 0.10
@@ -28,16 +30,17 @@ same_team:
     K|QB: 0.15
 
 opponent:
-  QB|QB: 0.30
-  QB|WR1: 0.20
-  QB|WR2: 0.12
-  QB|WR3: 0.08
-  QB|TE1: 0.10
-  QB|RB1: 0.05
-  DST|QB: -0.40
+  QB|QB: 0.19
+  QB|WR1: 0.13
+  QB|WR2: 0.08
+  QB|WR3: 0.05
+  QB|TE1: 0.07
+  QB|RB1: 0.03
+  RB1|RB1: 0.08
+  DST|QB: -0.41
   DST|WR: -0.20
-  DST|RB1: -0.15
-  DST|RB: -0.10
+  DST|RB1: -0.30
+  DST|RB: -0.20
   DST|TE: -0.15
 
 game_factor:

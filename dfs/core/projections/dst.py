@@ -50,7 +50,8 @@ def dst_projection(opp_implied: float, params: Params, scoring: dict, *, opp_dro
 
 def dst_model_rows(slate: pd.DataFrame, team_env: pd.DataFrame, params: Params, scoring: dict,
                    dst_inputs: pd.DataFrame | None = None,
-                   int_lambdas: dict[str, float] | None = None) -> tuple[pd.DataFrame, dict[int, dict]]:
+                   int_lambdas: dict[str, float] | None = None,
+                   opp_dropbacks: dict[str, float] | None = None) -> tuple[pd.DataFrame, dict[int, dict]]:
     """One 'model' component row per DST whose opponent has an implied total."""
     implied = team_env.set_index("team")["team_total"].to_dict()
     inp = dst_inputs.set_index("team") if dst_inputs is not None else None
@@ -66,6 +67,8 @@ def dst_model_rows(slate: pd.DataFrame, team_env: pd.DataFrame, params: Params, 
             if opp in inp.index:
                 kw.update(opp_sack_rate=inp.at[opp, "off_sack_rate_allowed"], opp_games=inp.at[opp, "off_games"],
                           opp_int_rate=inp.at[opp, "off_int_rate"])
+        if opp_dropbacks and opp in opp_dropbacks:
+            kw["opp_dropbacks"] = opp_dropbacks[opp]
         if int_lambdas and opp in int_lambdas:
             kw["opp_int_lambda"] = int_lambdas[opp]
         d = dst_projection(implied[opp], params, scoring, **kw)

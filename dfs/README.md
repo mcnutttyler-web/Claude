@@ -85,11 +85,42 @@ uncalibrated parameters. `team_check.csv` compares each team's projected offensi
 Stat-line sources are scored with `expected_score`, which prices the 300/100/100 bonuses and the DST
 points-allowed tiers by probability. Scoring a mean stat line directly would mis-price those nonlinear pieces.
 
+### Own projections from public data (P3)
+`bottomup.py` builds projections from free public data, following `docs/PROJECTION_PLAYBOOK.md` §3:
+1. Vegas lines set team plays, pass rate and TDs.
+2. nflverse play-by-play sets each player's target share, carry share, red-zone share and efficiency
+   (recency-weighted, blended with last season early in the year, shrunk toward the position average).
+3. Shares become stat lines, then DK points.
+4. Out players' volume is redistributed (targets 60/40, carries 70/30), weighted by how much of the team's recent
+   games they actually played.
+
+On top of that:
+- Receiving lines are reconciled to the QB's passing line.
+- The very top projections are shrunk slightly.
+- DST rates come from the same play-by-play.
+
+Vegas lines come from the first of these that exists: `--odds`, then a source's spread/total columns (for example
+DFF), then the nflverse schedule's lines. A free consensus CSV is optional. When you give one, it is blended 50/50
+with the own model, and a team whose blended points run more than 10% above the model is scaled back.
+
+```bash
+python -m core.projections.nflverse --season 2026          # download/refresh nflverse data (about 50 MB)
+python -m core.projections.publish --salaries DKSalaries.csv --out data/published            # own model only
+python -m core.projections.publish --salaries DKSalaries.csv --sources sources.yaml --fetch \
+  --out data/published                                       # own model + consensus, refresh data first
+python scripts/backtest_own_model.py --weeks 2025:2-18 2026:2-5   # walk-forward accuracy on real games
+```
+In the app: **Projections → "Build my own from public data"**.
+
+Data credit: nflverse (data CC-BY 4.0).
+
 Projection phases:
 - [x] **P1:** CSV importers, implied totals, consensus blend (inverse-MAE), overrides, publish, backtest harness.
 - [x] **P2:** props model (power de-vig, alt-line CDFs, TD λ), Questionable mixtures, weather, DST, Monte Carlo
   distributions with calibration, ownership v1. Add `--props`, `--weather`, `--dst-inputs`, `--n-sims` to publish.
-- [ ] P3: bottom-up nflverse model, learned vacated-usage table, learned/stacked blend weights, recalibration.
+- [x] **P3:** own bottom-up model from public data (nflverse + Vegas), injury redistribution, Vegas sanity check,
+  playbook correlations/CVs, nflverse schedule lines as a free odds fallback, real-data walk-forward backtest.
+  Still open: learned vacated-usage table, learned blend weights.
 - [ ] P4: ownership v2, kickers/Showdown, NBA adapter.
 
 ## Plugin contract

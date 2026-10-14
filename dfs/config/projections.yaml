@@ -22,7 +22,8 @@ nfl:
     fallback:    {value: equal, calibrated: true, source: "simple average when no prior-season history"}
     component_weights:
       with_props:    {value: {model: 0.3, market: 0.5, consensus: 0.2}, calibrated: false, source: "build prompt §3.7 starting point"}
-      without_props: {value: {model: 0.6, market: 0.0, consensus: 0.4}, calibrated: false, source: "build prompt §3.7 starting point"}
+      without_props: {value: {model: 0.5, market: 0.0, consensus: 0.5}, calibrated: false,
+                      source: "playbook §2: equal-weight blending beats any single source; own model counts as one view"}
     rolling_update:                         # P3
       window_weeks: {value: 8, calibrated: false, source: "build prompt §3.7"}
       floor:        {value: 0.1, calibrated: false, source: "build prompt §3.7"}
@@ -36,8 +37,8 @@ nfl:
     agreement_scale: {value: 1.0, calibrated: false, source: "agreement term exp(-sd_sources / (scale x position MAE))"}
 
   stat_conversion:                          # P1: scoring MEAN stat lines from stat-based sources
-    bonus_cv: {value: {pass_yds: 0.30, rush_yds: 0.55, rec_yds: 0.65}, calibrated: false,
-               source: "Normal approximation for P(300/100/100 bonus) from a mean stat line; replaced by sims in P2"}
+    bonus_cv: {value: {pass_yds: 0.25, rush_yds: 0.45, rec_yds: 0.45}, calibrated: false,
+               source: "playbook §3.2: P(bonus) from a Normal on yards, SD 0.45 x mean receivers/RBs, 0.25 x mean QBs"}
     pa_sigma: {value: 9.0, calibrated: false, source: "fantasytools.ai DST recipe: opp score ~ Normal(implied, 9)"}
 
   value_line:
@@ -85,8 +86,8 @@ nfl:
     stat_cv: {value: {pass_yds: 0.30, pass_att: 0.18, completions: 0.22, rush_yds: 0.55, rush_att: 0.35,
                       rec: 0.45, rec_yds: 0.65, int: 1.0}, calibrated: false,
               source: "default stat-level CVs when no prop sigma exists"}
-    points_cv: {value: {QB: 0.35, RB: 0.50, WR: 0.60, TE: 0.65, DST: 0.80, K: 0.55}, calibrated: false,
-                source: "fallback for points-only players (shifted lognormal)"}
+    points_cv: {value: {QB: 0.42, RB: 0.65, WR: 0.65, TE: 0.75, DST: 0.80, K: 0.55}, calibrated: false,
+                source: "playbook §3.3: QB 0.42, RB 0.60 workhorse/0.70 committee, WR 0.60 alpha/0.70 WR2-3, TE 0.75, DST 0.80 (fallback for points-only players)"}
     points_min: {value: {QB: -2, RB: -2, WR: -2, TE: -2, DST: -4, K: -1}, calibrated: true,
                  source: "DK scoring floor for practical purposes"}
     dispersion_scale: {value: {QB: 1.0, RB: 1.0, WR: 1.0, TE: 1.0, DST: 1.0, K: 1.0}, calibrated: false,
@@ -123,8 +124,10 @@ nfl:
   weather:                                  # P2
     wind_10_15: {value: {pass_yds_mult: 0.93, comp_pct_pts: -2.4, rush_att_mult: 1.03}, calibrated: false,
                  source: "Claremont thesis regression (10 mph)"}
-    wind_15_20: {value: {pass_yds_mult: 0.90}, calibrated: false, source: "betting-media summaries"}
-    wind_20_plus: {value: {pass_yds_mult: 0.85, fg_range_yds: -7, fg_make_pts: -6}, calibrated: false, source: "Covers"}
+    wind_15_20: {value: {pass_yds_mult: 0.90}, calibrated: false,
+                 source: "playbook §3.2: >=15 mph sustained -> pass volume -5% and efficiency -5% (0.95 x 0.95); Pinnacle 15 mph unders 54.5%"}
+    wind_20_plus: {value: {pass_yds_mult: 0.81, rush_att_mult: 1.05, fg_range_yds: -7, fg_make_pts: -6}, calibrated: false,
+                   source: "playbook §3.2: >=20 mph -> pass volume and efficiency -10% each, rushing +5%; FG from Covers"}
     rain_fg: {value: {at_40: -4, at_50: -6}, calibrated: false, source: "build prompt §3.1"}
     points_share_passing: {value: {QB: 0.45, RB: 0.15, WR: 0.80, TE: 0.80}, calibrated: false,
                            source: "share of DK points tied to passing yards; scales the pass-yds multiplier for points-only players"}
@@ -134,6 +137,30 @@ nfl:
     opp_score_sigma: {value: 9.0, calibrated: false, source: "fantasytools.ai DST recipe"}
     rate_shrink_games_k: {value: 3, calibrated: false, source: "fantasytools.ai: weight g/(g+3)"}
     fumble_recovery_rate: {value: 0.5, calibrated: false, source: "build prompt §3.9"}
+
+  bottomup:                                 # P3: own projections from public data (docs/PROJECTION_PLAYBOOK.md §3)
+    current_season_weight: {value: [[0, 1, 3, 5, 9], [0.0, 0.25, 0.5, 0.75, 0.9]], calibrated: false,
+                            source: "playbook §3.2: 25% current-season weight after wk1, 50% after wk3, 75% after wk5"}
+    prior_regress: {value: 0.3, calibrated: false, source: "last season's team rate regressed 30% to league before mixing"}
+    pass_td_frac_k: {value: 10, calibrated: false, source: "team pass-TD fraction shrunk toward league (~62%) with k=10 TDs"}
+    efficiency_games_k: {value: 8, calibrated: false,
+                         source: "playbook §3.2: efficiency 50/50 with position average after 8 games (w = g/(g+8))"}
+    rz_share_k: {value: 20, calibrated: false, source: "red-zone / goal-line share shrunk toward volume share (k team RZ looks)"}
+    no_prior_share_k_games: {value: 2, calibrated: false, source: "rookies/new players: share shrunk toward position mean, k=2 games"}
+    no_prior_share_target: {value: {WR: {tgt_share: 0.12}, TE: {tgt_share: 0.10}, RB: {tgt_share: 0.07, carry_share: 0.25}},
+                            calibrated: false, source: "position-mean shares (2025 nflverse, rounded)"}
+    prior_season_sample_weight: {value: 0.5, calibrated: false, source: "last-season games count half in efficiency samples"}
+    prior_only_share_mult: {value: 0.9, calibrated: false,
+                            source: "players with no games this season (returning from injury) start at 90% of last year's share"}
+    volume: {value: {league_plays: null, plays_per_itt_pt: 0.004, script_per_spread_pt: 0.006, pass_rate_clip: [0.45, 0.72],
+                     key_player_out_dropback_cut: 0.03, td_per_itt_pt: 0.105, vacated_targets_same_pos: 0.60,
+                     vacated_carries_next_rb: 0.70, reconcile_clip: [0.8, 1.25], td_from_rz: 0.80},
+             calibrated: false,
+             source: "playbook §3.2: plays x (1+0.004(ITT-avg)), pass rate = base + PROE - 0.006 x fav margin, OffTDs = 0.105 x ITT, injuries 60/40 targets & 70/30 carries, dropbacks -2-4% when QB1/WR1 out, TDs 80% from RZ share. league_plays null = measured from nflverse"}
+    top_end_shrink: {value: {QB: [22, 28, 0.88], RB: [20, 26, 0.92], TE: [13, 17, 0.93]}, calibrated: false,
+                     source: "playbook §3.3 (unreviewed nflverse backtest): actual/engine 0.88 QB 28+, 0.92 RB 26+, 0.93 TE 17+; ramped in linearly from [start] to [full] so there is no step"}
+    sanity_max_over: {value: 0.10, calibrated: false,
+                      source: "playbook §3.4: if a team's blended points run >10% above the Vegas-anchored model, scale the team down"}
 
   kicker:                                   # P4
     skill_shrink_k_attempts: {value: 60, calibrated: false, source: "build prompt §3.10"}

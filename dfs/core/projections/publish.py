@@ -95,6 +95,9 @@ def build_projections(
     dst_inputs: str | Path | None = None,
     simulate_outcomes: bool = True,
     n_sims: int | None = None,
+    public_model: bool = True,
+    nflverse_dir: str | Path | None = None,
+    fetch_data: bool = False,
 ) -> ProjectionRun:
     sport = load_sport(sport) if isinstance(sport, str) else sport
     params = params or Params(sport.name)
@@ -125,15 +128,44 @@ def build_projections(
         else:
             warnings.append("history has none of the configured source names — using equal weights")
 
-    # Vegas environment (needed by the DST model).
+    from core.projections import nflverse
+    nfl_dest = nflverse_dir or nflverse.DEFAULT_DIR
+    if public_model and fetch_data and sport.name == "nfl":
+        d0 = pd.Timestamp(min(x for x in slate["lock_time"] if x is not None and x == x))
+        season = d0.year if d0.month >= 3 else d0.year - 1
+        try:
+            nflverse.fetch([season - 1, season], dest=nfl_dest, log=lambda m: None)
+            nflverse.fetch_games(nfl_dest, log=lambda m: None)
+        except Exception as e:
+            warnings.append(f"nflverse download failed ({e}); using cached files if any")
+
+    # Vegas environment (needed by the DST model and the bottom-up model).
     env = None
     if odds is not None:
         env = team_environment(consensus_lines(read_odds(odds, sport.team_aliases), params.get("vegas.book_weights")))
+    else:
+        env = env_from_sources(rows, slate)
+        if env is not None:
+            warnings.append("Vegas lines taken from the projection source's spread / total columns (no odds file)")
+        elif sport.name == "nfl":
+            env = nflverse.schedule_env(slate, nfl_dest, sport.team_aliases)
+            if env is not None:
+                warnings.append("Vegas lines taken from the nflverse schedule (no odds file) — check for late moves")
+        if env is None:
+            warnings.append("no odds file and no spread/total in the sources: team_total / game_total / spread left empty")
+    if env is not None:
         missing = sorted(set(slate["team"]) - set(env["team"]))
         if missing:
             warnings.append(f"no odds for teams {missing}")
-    else:
-        warnings.append("no odds file: team_total / game_total / spread left empty")
+
+    # Bottom-up public model (nflverse play-by-play + Vegas).
+    model = None
+    status_early = early_status(rows, slate, sport, params, injuries)
+    if public_model and env is not None and sport.name == "nfl":
+        model, mw = run_public_model(slate, env, sport, params, status_early, nfl_dest)
+        warnings.extend(mw)
+        if model is not None and len(model.rows):
+            rows = pd.concat([rows, model.rows], ignore_index=True)
 
     # Market component from props (secondary stats filled from the consensus stat blend where available).
     market_extra = pd.DataFrame()
@@ -153,14 +185,18 @@ def build_projections(
     # DST model component.
     dst_detail: dict[int, dict] = {}
     if env is not None and sport.name == "nfl":
-        di = pd.read_csv(dst_inputs) if dst_inputs is not None else None
-        drows, dst_detail = dst_model_rows(slate, env, params, sport.scoring_cfg, di, int_by_team)
+        di = pd.read_csv(dst_inputs) if dst_inputs is not None else (model.dst_inputs if model is not None else None)
+        drows, dst_detail = dst_model_rows(slate, env, params, sport.scoring_cfg, di, int_by_team,
+                                           model.dropbacks if model is not None else None)
         if len(drows):
             rows = pd.concat([rows, drows], ignore_index=True)
 
     b = blend(rows, slate, params, weights)
     t = slate.copy()
     t = t.join(b.set_index("dk_index"), how="left")
+    if model is not None and len(model.rows):
+        t, sw = vegas_sanity(t, model.rows, params)
+        warnings.extend(sw)
     if len(market_extra):
         t = t.join(market_extra, how="left", rsuffix="_mkt")
     t["dk_id"] = t["id"]
@@ -265,9 +301,92 @@ def build_projections(
            "n_sims": int(sim.sims.shape[0]) if sim is not None else 0,
            "players": int(table["mean"].notna().sum()),
            "uncalibrated_parameters": params.uncalibrated(), "warnings": warnings}
-    run = ProjectionRun(table, team_consistency(table), log, warnings)
+    if model is not None:
+        n_mod = int((model.rows["points"] > 0).sum()) if len(model.rows) else 0
+        log["public_model"] = {"teams": int(len(model.teams)), "players": n_mod,
+                               "unmodeled": model.unmodeled, "notes": model.notes}
+    tc = team_consistency(table)
+    if model is not None and len(model.teams):
+        tc = tc.merge(model.teams, on="team", how="outer")
+    run = ProjectionRun(table, tc, log, warnings)
     run.sims = sim
     return run
+
+
+def env_from_sources(rows: pd.DataFrame, slate: pd.DataFrame) -> pd.DataFrame | None:
+    """Team environment from a projection source's spread / total columns (DailyFantasyFuel carries them)."""
+    if not len(rows) or "game_total" not in rows or "spread" not in rows:
+        return None
+    r = rows.dropna(subset=["game_total", "spread"]).copy()
+    if not len(r):
+        return None
+    r["team"] = slate.loc[r["dk_index"].astype(int), "team"].to_numpy()
+    g = r.groupby("team")[["spread", "game_total"]].median()
+    out = []
+    for team, v in g.iterrows():
+        one = slate[slate["team"] == team].iloc[0]
+        out.append({"team": team, "opp": one["opp"], "game_id": one["game_id"], "spread": float(v["spread"]),
+                    "game_total": float(v["game_total"]),
+                    "team_total": float(v["game_total"]) / 2 - float(v["spread"]) / 2})
+    return pd.DataFrame(out)
+
+
+def early_status(rows: pd.DataFrame, slate: pd.DataFrame, sport: SportConfig, params: Params,
+                 injuries) -> dict[int, str]:
+    """Statuses known before blending (source injury columns, then injuries.csv) — the model needs them for
+    redistributing an Out player's volume."""
+    st: dict[int, str] = {}
+    if len(rows) and "status" in rows.columns:
+        x = rows.dropna(subset=["status"]).astype({"status": str})
+        x = x[x["status"].str.strip() != ""]
+        st.update({int(k): v.strip().upper() for k, v in x.groupby("dk_index")["status"].first().items()})
+    if injuries is not None:
+        inj = read_injuries(injuries, slate, sport, params)
+        st.update({int(r.dk_index): str(r.status) for r in inj.itertuples()})
+    return st
+
+
+def run_public_model(slate, env, sport, params, status, dest):
+    """Run the bottom-up model when nflverse files for the slate's season are on disk."""
+    from core.projections import bottomup, nflverse
+    warnings: list[str] = []
+    d0 = pd.Timestamp(min(x for x in slate["lock_time"] if x is not None and x == x))
+    season = d0.year if d0.month >= 3 else d0.year - 1
+    if not nflverse.available(season, dest):
+        warnings.append(f"no nflverse data for {season} in {dest} — own model skipped "
+                        f"(run: python -m core.projections.nflverse --season {season})")
+        return None, warnings
+    cur = nflverse.load_season(season, before=d0.tz_localize(None) if d0.tzinfo else d0, dest=dest,
+                               aliases=sport.team_aliases)
+    if not len(cur["team_games"]):
+        warnings.append(f"no {season} games played before the slate — own model uses last season only")
+    prior = nflverse.load_season(season - 1, dest=dest, aliases=sport.team_aliases) \
+        if nflverse.available(season - 1, dest) else None
+    if not len(cur["team_games"]):
+        if prior is None:
+            return None, warnings
+        cur, prior = prior, None
+    model = bottomup.run_model(slate, env, cur, prior, sport, params, status)
+    if model.unmodeled:
+        warnings.append(f"own model: {len(model.unmodeled)} DK players have no nflverse history "
+                        f"(consensus only), e.g. {', '.join(model.unmodeled[:4])}")
+    return model, warnings
+
+
+def vegas_sanity(t: pd.DataFrame, model_rows: pd.DataFrame, params: Params) -> tuple[pd.DataFrame, list[str]]:
+    """Playbook §3.4: a team's blended offensive points may not run more than sanity_max_over above the
+    Vegas-anchored model's total for the same players; scale that team's non-model share down if so."""
+    over = float(params.get("bottomup.sanity_max_over"))
+    m = model_rows.set_index("dk_index")["points"]
+    notes = []
+    off = t.index.isin(m.index) & t["position"].isin(["QB", "RB", "WR", "TE"]) & t["mean"].notna()
+    for team, g in t[off].groupby("team"):
+        msum, bsum = float(m.loc[g.index].sum()), float(g["mean"].sum())
+        if msum > 0 and bsum > (1 + over) * msum:
+            f = (1 + over) * msum / bsum
+            t.loc[g.index, "mean"] = t.loc[g.index, "mean"] * f
+            notes.append(f"{team}: blended points {bsum:.1f} > model {msum:.1f} +{over:.0%} -> scaled x{f:.3f}")
+    return t, notes
 
 
 def lineup_csv(table: pd.DataFrame) -> pd.DataFrame:
@@ -309,7 +428,7 @@ def publish(run: ProjectionRun, out_dir: str | Path) -> dict[str, Path]:
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Build and publish DK projections (P1)")
     ap.add_argument("--salaries", required=True)
-    ap.add_argument("--sources", required=True, help="sources.yaml")
+    ap.add_argument("--sources", help="sources.yaml (optional: public consensus to blend with the own model)")
     ap.add_argument("--sport", default="nfl")
     ap.add_argument("--odds")
     ap.add_argument("--injuries")
@@ -322,11 +441,15 @@ def main(argv=None) -> None:
     ap.add_argument("--n-sims", type=int, default=None)
     ap.add_argument("--no-sims", action="store_true")
     ap.add_argument("--seed", type=int, default=20261013)
+    ap.add_argument("--no-model", action="store_true", help="skip the own (nflverse bottom-up) model")
+    ap.add_argument("--nflverse-dir", help="where nflverse files are cached (default data/nflverse)")
+    ap.add_argument("--fetch", action="store_true", help="download/refresh nflverse files first")
     ap.add_argument("--out", default="data/published")
     a = ap.parse_args(argv)
-    run = build_projections(a.salaries, load_source_specs(a.sources), a.sport, a.odds, a.injuries, a.overrides,
-                            a.history, a.actuals, a.seed, props=a.props, weather=a.weather,
-                            dst_inputs=a.dst_inputs, simulate_outcomes=not a.no_sims, n_sims=a.n_sims)
+    run = build_projections(a.salaries, load_source_specs(a.sources) if a.sources else [], a.sport, a.odds,
+                            a.injuries, a.overrides, a.history, a.actuals, a.seed, props=a.props, weather=a.weather,
+                            dst_inputs=a.dst_inputs, simulate_outcomes=not a.no_sims, n_sims=a.n_sims,
+                            public_model=not a.no_model, nflverse_dir=a.nflverse_dir, fetch_data=a.fetch)
     paths = publish(run, a.out)
     for w in run.warnings:
         print("WARN", w)
