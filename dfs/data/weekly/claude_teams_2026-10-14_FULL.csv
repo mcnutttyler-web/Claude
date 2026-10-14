@@ -1,0 +1,21 @@
+team,opp,home_away,kickoff_et,spread,total,implied_total,wind_mph,precip,dome,notes
+CHI,ATL,away,2026-10-18 1:00 PM,-3.5,49.0,26.25,,,Y,CBS -3/49.5; Fanatics -3.5/49; bet365 -3.5/47.5
+ATL,CHI,home,2026-10-18 1:00 PM,3.5,49.0,22.75,,,Y,CBS -3/49.5; Fanatics -3.5/49; bet365 -3.5/47.5
+BAL,CLE,away,2026-10-18 1:00 PM,-4.0,40.5,22.25,15,,N,CBS -4.5; bet365 -3.5; Lamar ankle status unresolved
+CLE,BAL,home,2026-10-18 1:00 PM,4.0,40.5,18.25,15,,N,CBS -4.5; bet365 -3.5; Lamar ankle status unresolved
+IND,TEN,home,2026-10-18 1:00 PM,-7.0,44.25,25.62,,,Y,CBS -7/44.5; Fanatics 44
+TEN,IND,away,2026-10-18 1:00 PM,7.0,44.25,18.62,,,Y,CBS -7/44.5; Fanatics 44
+NE,NYJ,home,2026-10-18 1:00 PM,-7.5,43.5,25.5,10,slight chance rain,N,CBS/bet365 -7.5; Fanatics -7
+NYJ,NE,away,2026-10-18 1:00 PM,7.5,43.5,18.0,10,slight chance rain,N,CBS/bet365 -7.5; Fanatics -7
+NYG,NO,home,2026-10-18 1:00 PM,-1.5,45.5,23.5,11,slight chance rain,N,CBS/bet365 NYG -1.5; one preview has NO -1.5 (Dart IR) - verify
+NO,NYG,away,2026-10-18 1:00 PM,1.5,45.5,22.0,11,slight chance rain,N,CBS/bet365 NYG -1.5; one preview has NO -1.5 (Dart IR) - verify
+PHI,CAR,home,2026-10-18 1:00 PM,-1.5,41.5,21.5,10,rain possible (sources conflict),N,total opened 43.5
+CAR,PHI,away,2026-10-18 1:00 PM,1.5,41.5,20.0,10,rain possible (sources conflict),N,total opened 43.5
+PIT,TB,away,2026-10-18 1:00 PM,-3.0,40.5,21.75,20,low,N,wind 15-25 mph forecast (KickoffWeather; Covers ~21) - 4 days out
+TB,PIT,home,2026-10-18 1:00 PM,3.0,40.5,18.75,20,low,N,wind 15-25 mph forecast (KickoffWeather; Covers ~21) - 4 days out
+LAR,ARI,home,2026-10-18 4:05 PM,-12.5,52.5,32.5,,,Y,ESPN -13.5; CBS/SBR -12.5; total opened 46.5
+ARI,LAR,away,2026-10-18 4:05 PM,12.5,52.5,20.0,,,Y,ESPN -13.5; CBS/SBR -12.5; total opened 46.5
+BUF,LV,away,2026-10-18 4:25 PM,-6.0,52.5,29.25,,,Y,ESPN 53.5; CBS/SBR 52.5; SBR -5.5
+LV,BUF,home,2026-10-18 4:25 PM,6.0,52.5,23.25,,,Y,ESPN 53.5; CBS/SBR 52.5; SBR -5.5
+KC,LAC,home,2026-10-18 4:25 PM,-8.5,42.5,25.5,15,,N,SBR total 43.5; LAC lowest implied total of week
+LAC,KC,away,2026-10-18 4:25 PM,8.5,42.5,17.0,15,,N,SBR total 43.5; LAC lowest implied total of week

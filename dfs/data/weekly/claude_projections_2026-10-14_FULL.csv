@@ -1,0 +1,121 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes
+Caleb Williams,CHI,ATL,QB,,19.0,10.5,29.4,4.2,4.4,Q,0.71,N,26.25,3,Yahoo;SI;Dimers;est,0.4,Hamstring; trending to return. Dimers 230 pass yds. Bagent starts if out
+Tyson Bagent,CHI,ATL,QB,,12.5,8.1,17.5,1.1,2.0,,0.98,N,26.25,1,SI;est,0.25,Only if Caleb sits; 3 INT in 2 starts
+D'Andre Swift,CHI,ATL,RB,,14.5,7.2,23.2,6.6,9.2,,0.98,N,26.25,1,Dimers;est,0.45,Dimers 59.9% anytime TD; Monangai day-to-day
+Kyle Monangai,CHI,ATL,RB,,7.5,3.0,13.1,0.8,1.9,Q,0.71,N,26.25,1,Yahoo;est,0.3,"Thumb/toe, day-to-day"
+Rome Odunze,CHI,ATL,WR,,13.5,5.4,23.6,14.1,14.6,,0.98,N,26.25,0,est,0.3,Role unverified this week; boost if Caleb plays
+Luther Burden III,CHI,ATL,WR,,9.0,3.6,15.8,4.0,6.1,,0.98,N,26.25,1,Rotoballer;est,0.35,Rotoballer bust call; ATL strong vs slot
+Colston Loveland,CHI,ATL,TE,,7.5,2.6,13.5,1.2,2.7,,0.98,N,26.25,2,Rotoballer;DKNetwork;est,0.35,Sit per two sources; ATL 6.2 YPA allowed
+Bears,CHI,ATL,DST,,6.0,0.0,13.2,2.2,3.4,,1.0,N,26.25,1,SI;est,0.35,Edge if Penix sits (ATL 8 ppg without him)
+Michael Penix Jr.,ATL,CHI,QB,,17.0,9.4,26.4,2.1,2.8,Q,0.71,N,22.75,2,ESPN;SI;est,0.35,"Ribs, 'not serious'; must practice. ATL 34.3 ppg with him"
+Bijan Robinson,ATL,CHI,RB,,23.0,11.5,36.8,45.0,30.0,,0.98,N,22.75,2,Dimers;FantasyPros,0.6,Dimers 24.5 PPR; trimmed for Penix risk
+Drake London,ATL,CHI,WR,,17.0,6.8,29.8,32.2,25.9,,0.98,N,22.75,2,BR;BigLead;est,0.45,"B/R WR2, Big Lead WR10; QB-dependent"
+Kyle Pitts,ATL,CHI,TE,,9.0,3.2,16.2,1.9,3.8,,0.98,N,22.75,0,est,0.3,Role unverified this week
+Falcons,ATL,CHI,DST,,4.5,0.0,9.9,0.7,1.6,,1.0,N,22.75,1,SI;est,0.35,SI must-sit defense
+Lamar Jackson,BAL,CLE,QB,,21.5,11.8,33.3,6.4,5.9,Q,0.71,N,22.25,2,Dimers;NBC;est,0.45,Ankle; 'real chance' (Rapoport). Dimers 21.0. Huntley started Week 5
+Tyler Huntley,BAL,CLE,QB,,14.0,9.1,19.6,1.4,2.2,,0.98,N,22.25,1,NBC;est,0.25,Starts only if Lamar out
+Derrick Henry,BAL,CLE,RB,,16.0,8.0,25.6,8.0,10.5,,0.98,N,22.25,2,Squawka;SBD;est,0.45,476 rush yds; ~19.5 carry est; CLE 4.48 YPC allowed
+Zay Flowers,BAL,CLE,WR,,15.0,6.0,26.2,17.9,17.2,,0.98,N,22.25,1,BigLead;est,0.45,Big Lead WR5; down if Huntley starts
+Mark Andrews,BAL,CLE,TE,,8.0,2.8,14.4,1.2,2.7,,0.98,N,22.25,0,est,0.25,Role unverified this week
+Ravens,BAL,CLE,DST,,9.0,0.0,19.8,11.9,10.9,,1.0,N,22.25,3,Lindys;NBC;Rotoballer;est,0.55,CLE allowed league-most 19 sacks; CLE 18.3 implied
+Deshaun Watson,CLE,BAL,QB,,14.5,9.4,20.3,1.3,2.1,,0.98,N,18.25,1,Squawka;est,0.35,Under pressure; 19 sacks taken
+Quinshon Judkins,CLE,BAL,RB,,12.0,4.8,21.0,1.7,3.3,Q,0.71,N,18.25,2,ESPN;Yahoo;est,0.3,"Ankle, wore boot; day-to-day"
+Denzel Boston,CLE,BAL,WR,,11.5,4.6,20.1,5.5,7.7,,0.98,N,18.25,1,Squawka;est,0.4,Team-high 330 rec yds
+Jerry Jeudy,CLE,BAL,WR,,8.5,3.4,14.9,2.4,4.3,,0.98,N,18.25,0,est,0.2,Role unverified this week
+Browns,CLE,BAL,DST,,5.5,0.0,12.1,1.1,2.1,,1.0,N,18.25,0,est,0.3,Higher if Lamar sits
+Daniel Jones,IND,TEN,QB,,16.0,10.4,22.4,2.7,3.5,,0.98,N,25.62,1,SharpFootball;est,0.4,"Never above QB23 this year; Achilles return, 25 rush yds"
+Jonathan Taylor,IND,TEN,RB,,22.5,11.2,36.0,45.0,30.0,,0.98,N,25.62,2,Dimers;PFN,0.6,Dimers 22.9 PPR; 7-pt home favorite
+Josh Downs,IND,TEN,WR,,13.0,5.2,22.8,11.9,13.0,,0.98,N,25.62,1,SharpFootball;est,0.45,Primary target with Pierce on IR
+Alec Pierce,IND,TEN,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.62,1,SharpFootball,0.9,Injured reserve (heel)
+Tyler Warren,IND,TEN,TE,,12.0,4.2,21.6,8.4,10.3,,0.98,N,25.62,1,BR;est,0.45,B/R TE4
+Colts,IND,TEN,DST,,8.5,0.0,18.7,10.3,9.8,,1.0,N,25.62,3,NBC;Rotowire;Rotoballer;est,0.55,TEN 31st pass EPA; <=10 pts in 3 of 5
+Cam Ward,TEN,IND,QB,,13.5,8.8,18.9,1.0,1.8,,0.98,N,18.62,1,SharpFootball;est,0.4,4.7 YPA last week; low-total team
+Tony Pollard,TEN,IND,RB,,11.0,5.5,17.6,1.9,3.9,,0.98,N,18.62,0,est,0.2,Role unverified this week
+Calvin Ridley,TEN,IND,WR,,11.0,4.4,19.2,4.9,7.0,,0.98,N,18.62,0,est,0.2,Role unverified this week
+Titans,TEN,IND,DST,,4.0,0.0,8.8,0.4,1.1,,1.0,N,18.62,0,est,0.3,
+Drake Maye,NE,NYJ,QB,,21.0,13.6,29.4,9.2,8.4,,0.98,N,25.5,2,ESPN;CBS;est,0.45,ESPN QB4 superflex; CBS projection riser
+Rhamondre Stevenson,NE,NYJ,RB,,15.5,7.8,24.8,8.2,10.7,,0.98,N,25.5,3,FFC;FantasyData;FTN;est,0.5,Lead back with Henderson out
+TreVeyon Henderson,NE,NYJ,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.5,2,Yahoo;CBS,0.7,High ankle sprain; Yahoo: miss multiple weeks
+A.J. Brown,NE,NYJ,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.5,1,Yahoo,0.7,On IR (high ankle); earliest return Week 6 - verify activation
+Stefon Diggs,NE,NYJ,WR,,12.0,4.8,21.0,8.9,10.6,,0.98,N,25.5,0,est,0.2,Role unverified this week; A.J. Brown IR
+Hunter Henry,NE,NYJ,TE,,10.5,3.7,18.9,4.3,6.5,,0.98,N,25.5,2,BR;Clutchpoints;est,0.35,24.6 pts last two games (attribution unclear)
+Patriots,NE,NYJ,DST,,9.0,0.0,19.8,14.0,12.2,,1.0,N,25.5,3,NBC;Lindys;Rotowire;est,0.55,NYJ 18.0 implied
+Geno Smith,NYJ,NE,QB,,13.5,8.8,18.9,1.0,1.7,,0.98,N,18.0,1,NBC;est,0.3,Starter not confirmed this week; 6 TD 0 INT
+Braelon Allen,NYJ,NE,RB,,9.5,4.8,15.2,1.3,2.9,,0.98,N,18.0,2,FTN;NBC;est,0.35,Likely workhorse if Hall sits
+Breece Hall,NYJ,NE,RB,,10.0,4.0,17.5,1.0,2.3,Q,0.71,N,18.0,2,FTN;NBC;est,0.3,"Quad, week-to-week"
+Garrett Wilson,NYJ,NE,WR,,14.5,5.8,25.4,12.7,13.6,,0.98,N,18.0,2,BR;NBC;est,0.45,B/R WR8; volume with Mitchell hurt
+Adonai Mitchell,NYJ,NE,WR,,7.5,2.3,14.2,1.3,2.5,Q,0.71,N,18.0,1,NBC;est,0.25,Finger
+Jets,NYJ,NE,DST,,4.0,0.0,8.8,0.4,1.1,,1.0,N,18.0,0,est,0.3,
+Jameis Winston,NYG,NO,QB,,16.5,10.7,23.1,2.7,3.6,,0.98,N,23.5,2,SI;BigBlueView;est,0.4,"Starting for Dart (knee, IR)"
+Jaxson Dart,NYG,NO,QB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,23.5,1,SI,0.8,"Knee, IR"
+Cam Skattebo,NYG,NO,RB,,14.0,7.0,22.4,5.1,7.7,,0.98,N,23.5,0,est,0.25,No injury news; role unverified
+Malik Nabers,NYG,NO,WR,,17.5,7.0,30.6,38.4,29.3,,0.98,N,23.5,1,BR;est,0.4,B/R WR3; sat a Week 5 practice (knee) - monitor
+Isaiah Likely,NYG,NO,TE,,12.5,4.4,22.5,9.4,11.1,,0.98,N,23.5,2,Dimers;BR,0.6,"Dimers 12.9 PPR, 47.2 yds; B/R TE5"
+Giants,NYG,NO,DST,,6.0,0.0,13.2,1.9,3.1,,1.0,N,23.5,1,SI;est,0.35,Fine matchup vs weak NO line (Banks out)
+Tyler Shough,NO,NYG,QB,,17.0,11.0,23.8,2.8,3.7,,0.98,N,22.0,1,Footballguys;est,0.35,FBG 17.76 (stale); left hand limited earlier
+Alvin Kamara,NO,NYG,RB,,8.5,4.2,13.6,1.2,2.8,,0.98,N,22.0,1,SI;est,0.3,~6.3 ppg; Etienne on IR
+Chris Olave,NO,NYG,WR,,16.0,6.4,28.0,23.4,20.8,,0.98,N,22.0,3,BR;BigLead;Yahoo,0.5,Yahoo: 'rebound spot'; B/R WR10
+Juwan Johnson,NO,NYG,TE,,11.0,3.8,19.8,4.5,6.7,,0.98,N,22.0,1,Statchasers;est,0.3,16.1 projection is 22 days old
+Saints,NO,NYG,DST,,5.0,0.0,11.0,1.0,1.9,,1.0,N,22.0,0,est,0.3,Winston turnover risk
+Jalen Hurts,PHI,CAR,QB,,18.5,12.0,25.9,4.0,4.7,,0.98,N,21.5,1,SI;est,0.4,Offense 278 ypg; WRs banged up
+Saquon Barkley,PHI,CAR,RB,,15.0,6.0,26.2,4.4,6.2,Q,0.71,N,21.5,2,SI;Yahoo;est,0.35,Hamstring; Pierce/Steele if out
+Dameon Pierce,PHI,CAR,RB,,5.5,2.8,8.8,0.5,1.6,,0.98,N,21.5,1,SI;est,0.2,Lead only if Barkley out; Shipley out
+DeVonta Smith,PHI,CAR,WR,,12.5,3.8,23.8,6.2,7.5,Q,0.71,N,21.5,1,SI;est,0.35,"Hamstring, missed Week 5"
+Dontayvion Wicks,PHI,CAR,WR,,8.5,3.4,14.9,2.8,4.7,,0.98,N,21.5,1,SI;est,0.3,Top target if Smith sits
+Makai Lemon,PHI,CAR,WR,,7.0,2.8,12.2,1.8,3.5,,0.98,N,21.5,1,SI;est,0.25,Rookie; rises if Smith sits
+Eagles,PHI,CAR,DST,,5.0,0.0,11.0,0.9,1.9,,1.0,N,21.5,1,SI;est,0.35,SI must-sit; CAR scoring 30 ppg
+Bryce Young,CAR,PHI,QB,,18.5,12.0,25.9,3.7,4.5,,0.98,N,20.0,1,SI;est,0.4,Breakout season; CAR ~30 ppg
+Chuba Hubbard,CAR,PHI,RB,,14.5,7.2,23.2,4.9,7.5,,0.98,N,20.0,1,NBC;est,0.4,Volume RB1 with Brooks on IR
+Tetairoa McMillan,CAR,PHI,WR,,15.5,6.2,27.1,18.6,17.7,,0.98,N,20.0,1,BigLead;est,0.45,Big Lead WR9
+Jalen Coker,CAR,PHI,WR,,9.0,2.7,17.1,2.1,3.6,Q,0.71,N,20.0,1,SI;est,0.3,Quad; coach says 'on track'
+Panthers,CAR,PHI,DST,,5.0,0.0,11.0,0.9,1.8,,1.0,N,20.0,0,est,0.3,PHI offense struggling
+Aaron Rodgers,PIT,TB,QB,,15.0,8.2,23.2,1.7,2.6,,0.98,N,21.75,1,SI;est,0.35,Wind 15-25 forecast: passing -10%. Quick game vs blitz
+Jaylen Warren,PIT,TB,RB,,14.0,7.0,22.4,4.7,7.3,,0.98,N,21.75,2,BR;SI;est,0.45,Top-6 RB in one ranking; wind favors run
+Rico Dowdle,PIT,TB,RB,,5.5,2.2,9.6,0.4,1.2,Q,0.71,N,21.75,1,SI;est,0.25,
+DK Metcalf,PIT,TB,WR,,11.0,3.3,20.9,5.6,7.8,,0.98,N,21.75,1,BigLead;est,0.4,WR20 in one ranking; wind -10%
+Germie Bernard,PIT,TB,WR,,7.5,2.3,14.2,2.1,3.9,,0.98,N,21.75,2,BR;SI;est,0.35,"6-80 last week; Pittman IR, Wilson/Skowronek out"
+Pat Freiermuth,PIT,TB,TE,,7.5,1.9,14.6,1.0,2.3,,0.98,N,21.75,2,BR;SI;est,0.35,3 TDs last two games
+Steelers,PIT,TB,DST,,9.5,0.0,20.9,15.9,13.3,,1.0,N,21.75,3,Rotoballer;Lindys;NBC;est,0.55,Rookie QB Daniels; TB allows 10 DST ppg
+Jalon Daniels,TB,PIT,QB,,13.0,7.2,20.2,0.9,1.6,,0.98,N,18.75,2,SI;Clutchpoints;est,0.35,Rookie; Mayfield out; sacked 4x in 2 starts; wind
+Baker Mayfield,TB,PIT,QB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,18.75,1,SI,0.7,Listed out
+Bucky Irving,TB,PIT,RB,,12.5,6.2,20.0,2.8,5.1,,0.98,N,18.75,0,est,0.2,Role unverified this week
+Emeka Egbuka,TB,PIT,WR,,12.5,3.8,23.8,7.5,9.5,,0.98,N,18.75,1,ESPN;est,0.35,ESPN flex list; wind -10%
+Buccaneers,TB,PIT,DST,,4.5,0.0,9.9,0.6,1.4,,1.0,N,18.75,0,est,0.3,Wind helps a bit
+Matthew Stafford,LAR,ARI,QB,,22.5,14.6,31.5,19.3,13.9,,0.98,N,32.5,2,FantasyPros;Dimers,0.65,"FP 21.4, Dimers 22.9; LAR lead NFL in pass yds"
+Kyren Williams,LAR,ARI,RB,,18.5,9.2,29.6,24.3,22.7,,0.98,N,32.5,2,PFN;FFC;est,0.45,Top-8 RB consensus; 12.5-pt home fav
+Blake Corum,LAR,ARI,RB,,7.5,3.8,12.0,1.5,3.2,,0.98,N,32.5,1,CBS;est,0.3,CBS sneaky start; blowout snaps
+Puka Nacua,LAR,ARI,WR,,22.0,8.8,38.5,45.0,30.0,,0.98,N,32.5,3,Dimers;BigLead;BR,0.65,"Dimers 22.2 PPR, 91.9 yds; WR1 Big Lead"
+Davante Adams,LAR,ARI,WR,,15.0,6.0,26.2,28.8,24.0,,0.98,N,32.5,1,Rotoballer;est,0.4,Rotoballer top-15 WR
+Tyler Higbee,LAR,ARI,TE,,7.5,2.6,13.5,1.7,3.4,,0.98,N,32.5,1,FantasyPros;est,0.4,TE1 with Ferguson on IR
+Rams,LAR,ARI,DST,,8.5,0.0,18.7,14.4,12.4,,1.0,N,32.5,3,Rotoballer;NBC;ESPN;est,0.5,4th pressure rate; ARI comes from behind
+Jacoby Brissett,ARI,LAR,QB,,16.0,10.4,22.4,2.0,2.9,,0.98,N,20.0,2,SI;Rotoballer;est,0.4,"40 att/g, 7 TD last 3; garbage time"
+Jeremiyah Love,ARI,LAR,RB,,9.0,4.5,14.4,1.2,2.8,,0.98,N,20.0,2,PrizePicks;SI;est,0.3,Rookie; script risk as 12.5-pt dog
+Michael Wilson,ARI,LAR,WR,,12.5,5.0,21.9,8.0,9.8,,0.98,N,20.0,2,ESPN;BigLead;est,0.4,WR1 after MHJ trade
+Kendrick Bourne,ARI,LAR,WR,,8.0,3.2,14.0,2.2,4.1,,0.98,N,20.0,1,SI;est,0.3,WR2 after MHJ trade
+Trey McBride,ARI,LAR,TE,,16.0,5.6,28.8,36.3,28.5,,0.98,N,20.0,2,Dimers;BR,0.6,"Dimers 16.6 PPR, 60.9 yds; B/R TE2"
+Cardinals,ARI,LAR,DST,,2.5,0.0,5.5,0.2,0.6,,1.0,N,20.0,0,est,0.3,Heavy dog vs top passing O
+Josh Allen,BUF,LV,QB,,23.5,15.3,32.9,21.0,14.8,,0.98,N,29.25,3,FantasyPros;DraftSharks;ESPN,0.65,FP 22.7; DraftSharks 23.4-25.3 (pages conflict)
+James Cook III,BUF,LV,RB,,18.0,9.0,28.8,18.4,18.8,,0.98,N,29.25,2,FFC;Rotoballer,0.55,FFC 18.0 PPR; ball-security concerns
+DJ Moore,BUF,LV,WR,,12.5,3.8,23.8,8.8,9.6,Q,0.71,Y,29.25,1,Yahoo;est,0.35,Shoulder; WR21 in one ranking. Late game
+Khalil Shakir,BUF,LV,WR,,11.5,4.6,20.1,9.2,10.9,,0.98,Y,29.25,0,est,0.2,Role unverified; gains if Moore sits
+Dalton Kincaid,BUF,LV,TE,,9.0,3.2,16.2,2.7,4.7,,0.98,N,29.25,0,est,0.2,Role unverified this week
+Bills,BUF,LV,DST,,6.5,0.0,14.3,3.5,4.7,,1.0,N,29.25,0,est,0.3,LV 23.3 implied
+Kirk Cousins,LV,BUF,QB,,17.5,11.4,24.5,3.4,4.2,,0.98,N,23.25,1,NBC;est,0.4,"1,269 yds, 12 TD thru 5; high total"
+Ashton Jeanty,LV,BUF,RB,,15.0,7.5,24.0,6.5,9.1,,0.98,Y,23.25,3,FFC;Yahoo;FantasyData,0.45,"FFC 16.1; 'banged up', crowded backfield"
+Jakobi Meyers,LV,BUF,WR,,11.0,4.4,19.2,6.1,8.1,,0.98,N,23.25,0,est,0.2,Role unverified; Nailor Q
+Brock Bowers,LV,BUF,TE,,16.0,5.6,28.8,42.9,30.0,,0.98,N,23.25,2,Dimers;BR,0.65,"Dimers 16.1 PPR, 5.6 rec, 46.5% TD; 20+ in all 3 starts"
+Raiders,LV,BUF,DST,,3.5,0.0,7.7,0.4,1.0,,1.0,N,23.25,0,est,0.3,2.2 forced fumbles/g but vs Allen
+Patrick Mahomes,KC,LAC,QB,,20.0,13.0,28.0,7.2,7.0,,0.98,N,25.5,1,Footballguys;est,0.4,Off bye; FBG 17.6 (stale); Rice out
+Kenneth Walker III,KC,LAC,RB,,21.5,10.8,34.4,38.0,30.0,,0.98,N,25.5,2,Dimers;PFN,0.6,"Dimers 22.3 PPR, 87.9 rush yds, 64.1% TD"
+Travis Kelce,KC,LAC,TE,,10.5,3.7,18.9,4.3,6.5,,0.98,N,25.5,2,Dimers;BR,0.5,"Dimers 43.2 yds, 29.5% TD; leads KC pass catchers"
+Xavier Worthy,KC,LAC,WR,,12.0,4.8,21.0,8.9,10.6,,0.98,N,25.5,0,est,0.2,Role unverified; Rice out
+Rashee Rice,KC,LAC,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.5,2,SI;NBC,0.6,"Hamstring, several-week absence"
+Chiefs,KC,LAC,DST,,9.5,0.0,20.9,19.1,15.1,,1.0,N,25.5,3,NBC;Rotowire;Dimers,0.55,"NBC DST1; LAC 0-5, 17.0 implied"
+Justin Herbert,LAC,KC,QB,,13.5,8.8,18.9,0.9,1.7,,0.98,N,17.0,1,BR;est,0.4,"5 TD 7 INT, 59.4%; wind 10-20"
+Omarion Hampton,LAC,KC,RB,,9.5,4.8,15.2,1.2,2.8,,0.98,N,17.0,2,FFC;ESPN,0.45,FFC 9.3; ESPN RB30
+Kimani Vidal,LAC,KC,RB,,5.5,2.8,8.8,0.4,1.4,,0.98,N,17.0,1,Yahoo;est,0.25,Waiver add; few bright spots
+Ladd McConkey,LAC,KC,WR,,9.0,2.7,17.1,1.9,3.3,Q,0.71,Y,17.0,2,Yahoo;NBC;est,0.3,Active Week 5 but ~0 snaps. Late game
+Quentin Johnston,LAC,KC,WR,,8.0,3.2,14.0,1.9,3.7,,0.98,Y,17.0,0,est,0.2,Role unverified; up if McConkey sits
+Tre' Harris,LAC,KC,WR,,0.0,0.0,0.0,0.0,0.0,D,0.06,Y,17.0,1,Yahoo,0.5,"Hamstring, doubtful"
+Charlie Kolar,LAC,KC,TE,,4.5,1.6,8.1,0.2,0.8,,0.98,N,17.0,1,BR;est,0.3,TE1 but low usage
+Chargers,LAC,KC,DST,,3.0,0.0,6.6,0.2,0.7,,1.0,N,17.0,0,est,0.3,Road dog at KC
