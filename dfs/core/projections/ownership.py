@@ -52,24 +52,48 @@ def _cap(share: pd.Series, cap: float) -> pd.Series:
     return share
 
 
-def classic_ownership(df: pd.DataFrame, params: Params, field: str = "gpp") -> pd.Series:
-    totals = params.get("ownership.roster_totals")
-    temp = float(params.get("ownership.temperature")[field])
-    cap = float(params.get("ownership.cap")[field])
-    pp = df["p_play"].fillna(1.0) if "p_play" in df else pd.Series(1.0, index=df.index)
-    sc = scores(df, params)
-    w = np.exp(temp * sc) * pp
+def _classic(df, sc, pp, totals, temp, cap, theta, sal_k):
+    w = np.exp(temp * sc - theta * sal_k) * pp
     own = pd.Series(0.0, index=df.index)
     for pos, g in df.groupby("position"):
         if pos in totals:
             own.loc[g.index] = w[g.index] / w[g.index].sum() * totals[pos]
     flex = df["position"].isin(["RB", "WR", "TE"])
     if flex.any() and "FLEX" in totals:
-        wf = np.exp(temp * 1.3 * sc[flex]) * pp[flex]          # FLEX goes to the best values
+        wf = np.exp(temp * 1.3 * sc[flex] - theta * sal_k[flex]) * pp[flex]      # FLEX goes to the best values
         own.loc[flex] += wf / wf.sum() * totals["FLEX"]
     for pos, g in df.groupby("position"):
         own.loc[g.index] = _cap(own.loc[g.index], cap)
     return own
+
+
+def classic_ownership(df: pd.DataFrame, params: Params, field: str = "gpp") -> pd.Series:
+    """Salary-feasible: if the field implied by the shares would average more than max_implied_salary per lineup
+    (sum of own x salary; DK cap $50,000), a salary tilt exp(-theta x $K) is added and theta found by bisection.
+    Without it, studs at the ownership cap can imply a $57k "average lineup" that no real field can roster."""
+    totals = params.get("ownership.roster_totals")
+    temp = float(params.get("ownership.temperature")[field])
+    cap = float(params.get("ownership.cap")[field])
+    pp = df["p_play"].fillna(1.0) if "p_play" in df else pd.Series(1.0, index=df.index)
+    sc = scores(df, params)
+    if "salary" not in df or df["salary"].isna().any():
+        return _classic(df, sc, pp, totals, temp, cap, 0.0, pd.Series(0.0, index=df.index))
+    sal_k = df["salary"].astype(float) / 1000
+    limit = float(params.get("ownership.max_implied_salary")[field])
+    implied = lambda o: float((o * df["salary"]).sum())
+    own = _classic(df, sc, pp, totals, temp, cap, 0.0, sal_k)
+    if implied(own) <= limit:
+        return own
+    lo, hi = 0.0, 0.5
+    while implied(_classic(df, sc, pp, totals, temp, cap, hi, sal_k)) > limit and hi < 64:
+        hi *= 2
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if implied(_classic(df, sc, pp, totals, temp, cap, mid, sal_k)) > limit:
+            lo = mid
+        else:
+            hi = mid
+    return _classic(df, sc, pp, totals, temp, cap, hi, sal_k)
 
 
 def showdown_ownership(df: pd.DataFrame, params: Params, field: str = "gpp") -> tuple[pd.Series, pd.Series]:

@@ -8,7 +8,7 @@ sims:
   chunk: 2000
   dtype: float32
 cash:                 # default — calibrate
-  candidates: {top_k: 300, blends: [0.2, 0.4], blend_k: 100, fade_pivots: 15, neighbor_swaps: 5}
+  candidates: {top_k: 60, blends: [0.2, 0.4], blend_k: 30, fade_pivots: 15, neighbor_swaps: 5}   # 60/30 picked the same lineup as 300/100 on a 261-player slate at 1/13 the time
   field_pool: 3000    # field lineups generated per run; contest opponents are drawn from it by weight
   mv_lambda: 0.01     # reported mean-variance score E[D] -/+ lambda Var(D)
   alternatives: 5

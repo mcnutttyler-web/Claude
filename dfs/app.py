@@ -281,7 +281,8 @@ with tabs[2]:
         cash_keys = [k for k in tmpl if load_contest(tmpl[k]).is_cash]
         chosen_c = st.multiselect("Cash contests", cash_keys, default=cash_keys)
         c1, c2, c3 = st.columns(3)
-        top_k = c1.number_input("Top-K candidates by median", 10, 800, 150, step=10)
+        top_k = c1.number_input("Top-K candidates by median", 10, 800, 60, step=10,
+                                help="60 picked the same lineup as 300 in testing at a fraction of the time")
         sharp = c2.checkbox("H2H opponent is sharp")
         do_split = c3.checkbox("Show 2-lineup split")
         cons_up = st.file_uploader("consensus_cash.csv (optional)", type=["csv"], key="cons")

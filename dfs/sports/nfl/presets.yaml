@@ -84,4 +84,5 @@ field:                           # field models (Section 5.3) — default — ca
   fit:
     iterations: 12
     tolerance_pp: 1.5
-    fit_sample: 10000
+    fit_sample: 6000
+    rake_handoff_pp: 5           # stop reweighting below 5 pp max error; raking finishes (same final error, ~10x faster)

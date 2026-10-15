@@ -178,6 +178,8 @@ nfl:
     temperature: {value: {gpp: 1.0, cash: 1.6, cpt: 1.2}, calibrated: false,
                   source: "cash fields concentrate harder on top value (higher temperature = sharper)"}
     cap: {value: {gpp: 0.60, cash: 0.85}, calibrated: false, source: "max single-player ownership"}
+    max_implied_salary: {value: {gpp: 49500, cash: 49800}, calibrated: false,
+                         source: "sum(own x salary) = the average field lineup's salary; must fit under the $50,000 cap (cash fields use ~$49.8k, GPP fields leave a little more)"}
     v2_model: {value: data/ownership_model.json, calibrated: false,
                source: "ridge on logit(%Drafted) fit from your own DK standings (core/projections/ownership_fit.py). The GPP tab uses it (toggle) when this file exists - create it after `python scripts/ownership_fit.py data/archive --cv` shows the model beating the heuristic on the 3 most recent slates"}
     free_square_pts_per_k: {value: 3.2, calibrated: false,

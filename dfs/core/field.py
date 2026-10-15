@@ -324,15 +324,16 @@ def rake_weights(fs: FieldSample, target: np.ndarray, iters: int = 200, bound: f
 
 def fit_field(slate: pd.DataFrame, sport: SportConfig, target_own: np.ndarray, n: int, kind: str = "gpp",
               mode: str = "classic", seed: int = 0, consensus: list[Lineup] | None = None,
-              cfg: dict | None = None) -> FieldSample:
+              cfg: dict | None = None, fit: dict | None = None) -> FieldSample:
     """Iteratively reweight the sampling base so simulated ownership is within tolerance_pp of target_own."""
     cfg = cfg or field_config(sport, kind)
-    fit = sport.preset("field").get("fit", {})
+    fit = {**sport.preset("field").get("fit", {}), **(fit or {})}
     iters, tol = int(fit.get("iterations", 8)), float(fit.get("tolerance_pp", 1.5)) / 100
     target = np.clip(np.asarray(target_own, dtype=float), 0, None)
     base = np.clip(target, 1e-6, None).copy()
     sampler = LineupSampler(slate, sport.mode(mode))
     n_fit = int(fit.get("fit_sample", 6000))
+    handoff = float(fit.get("rake_handoff_pp", 0.0)) / 100     # raking finishes the job below this error
     best_base, best_err = base.copy(), np.inf
     for it in range(iters):
         fs = generate_field(slate, sport, base, n_fit, kind, mode, np.random.default_rng(seed + it), consensus, cfg,
@@ -341,7 +342,9 @@ def fit_field(slate: pd.DataFrame, sport: SportConfig, target_own: np.ndarray, n
         err = float(np.max(np.abs(sim - target)))
         if err < best_err:
             best_base, best_err = base.copy(), err
-        if err <= tol * 0.7:
+        # stop once within sampling noise of the fit sample (3 SE of the largest share); raking below fixes the rest
+        noise = 3.0 * float(np.sqrt(np.max(np.clip(target, 0, 1) * (1 - np.clip(target, 0, 1))) / n_fit))
+        if err <= max(tol * 0.7, noise, handoff):
             break
         ratio = (target + 0.002) / (sim + 0.002)
         base = np.clip(base * ratio ** (1.0 if it < 3 else 0.6), 1e-7, None)

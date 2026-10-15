@@ -231,3 +231,21 @@ def test_publish_with_props_weather_and_sims(nfl, tmp_path):
     paths = publish(run, tmp_path / "out")
     assert np.load(paths["sims"])["sims"].shape == (3000, len(run.sims.index))
     assert load_slate(tmp_path / "DKSalaries.csv", paths["csv"], nfl).ready
+
+
+def test_heuristic_ownership_is_salary_feasible():
+    """Studs at the ownership cap must not imply an average field lineup over the $50k cap (field fit can't hit it)."""
+    from core.projections.ownership import classic_ownership
+    rng = np.random.default_rng(4)
+    rows = []
+    for pos, n in (("QB", 12), ("RB", 24), ("WR", 36), ("TE", 12), ("DST", 12)):
+        for i in range(n):
+            sal = int(rng.integers(30, 95)) * 100
+            rows.append({"position": pos, "salary": sal, "median": sal / 1000 * 2.6 + (8 if i < 2 else 0),
+                         "team_total": 24.0, "p_play": 1.0})
+    df = pd.DataFrame(rows)
+    df["mean"] = df["median"]
+    for fld, lim in (("cash", 49800), ("gpp", 49500)):
+        o = classic_ownership(df, P, fld)
+        assert float((o * df["salary"]).sum()) <= lim + 1.0
+        assert o.sum() == pytest.approx(9.0, abs=1e-6) and o.max() <= P.get("ownership.cap")[fld] + 1e-6
