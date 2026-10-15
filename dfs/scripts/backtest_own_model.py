@@ -95,6 +95,17 @@ def week_frame(season: int, week: int, games: pd.DataFrame, sport, params, cache
     return out[out["pid"].isin(played)]
 
 
+def pool_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """backtest.csv for scripts/recalibrate.py: season, week, pos, proj, actual (+ name, team).
+    The pool is chosen PRE-GAME by projection (top-20 QB/TE, top-40 RB/WR each week) among players who played —
+    never by actual points."""
+    parts = [df[df["position"] == p].sort_values("points", ascending=False).groupby(["season", "week"]).head(n)
+             for p, n in POOL.items()]
+    p = pd.concat(parts, ignore_index=True)
+    return p.rename(columns={"position": "pos", "points": "proj"})[["season", "week", "pos", "proj", "actual", "name",
+                                                                     "team"]]
+
+
 def summarize(df: pd.DataFrame, params) -> pd.DataFrame:
     bars = params.get("validation.mae_bar")
     rows = []
@@ -116,6 +127,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--weeks", nargs="+", default=["2025:4-18", "2026:2-5"], help="season:first-last")
     ap.add_argument("--out", default="data/backtest_own_model.csv")
+    ap.add_argument("--pool-out", default="data/backtest.csv", help="season, week, pos, proj, actual (recalibrate.py)")
     a = ap.parse_args(argv)
     sport, params = load_sport("nfl"), Params()
     games = pd.read_csv(nflverse.DEFAULT_DIR / "games.csv")
@@ -130,6 +142,8 @@ def main(argv=None):
                 print(f"{season} wk{w}: {len(f)} players", flush=True)
     df = pd.concat(frames, ignore_index=True)
     df.to_csv(a.out, index=False)
+    pool_frame(df).to_csv(a.pool_out, index=False)
+    print(f"wrote {a.pool_out} (pool chosen pre-game by projection)")
     print(summarize(df, params).to_string(index=False))
 
 

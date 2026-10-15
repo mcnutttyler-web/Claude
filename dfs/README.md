@@ -114,6 +114,37 @@ In the app: **Projections → "Build my own from public data"**.
 
 Data credit: nflverse (data CC-BY 4.0).
 
+### Calibration, weekly archive and ownership model
+These came from the user-supplied `recalibrate.py`, `archive_week.py` and `ownership_fit.py`, now integrated:
+`core/projections/recalibrate.py`, `core/archive.py` and `core/projections/ownership_fit.py`, with CLI wrappers
+in `scripts/`.
+
+The projection order is:
+1. Own model and consensus are blended 50/50 (`blend_with_fallback`). A player with no model projection, such as
+   a rookie, uses 100% consensus instead of being dropped.
+2. Per-position calibration is applied from `config/calibration.json` (`apply_calibration`), giving `proj_cal`.
+3. `proj_cal` is the projection the optimizer uses.
+
+Calibration details:
+- It is fit only inside the projection range the backtest saw, so low projections aren't extrapolated.
+- If the file is missing, the app warns and uses the raw blend.
+
+The weekly loop:
+```bash
+python scripts/export_backtest.py                 # data/backtest.csv: season, week, pos, proj, actual (pool = pre-game, by projection)
+python scripts/recalibrate.py data/backtest.csv --walk-forward              # does calibration help out of sample?
+python scripts/recalibrate.py data/backtest.csv --out config/calibration.json
+python scripts/archive_week.py 2026 6 --salaries DKSalaries.csv --dff dff.csv --pool data/weekly/my_projections.csv
+python scripts/ownership_fit.py data/archive --cv   # once >= 3 slates are archived with standings
+python scripts/ownership_fit.py data/archive --fit  # -> data/ownership_model.json (GPP tab toggle uses it)
+```
+In the app:
+- **Build projections** writes `data/weekly/my_projections.csv`, with name, pos, salary, proj (calibrated),
+  team_total and own_heuristic (%).
+- The sidebar **Archive this week** saves the salaries, DFF and pool files, plus any DK standings you upload, to
+  `data/archive/<season>/w<NN>/`.
+- The GPP tab has a toggle for the fitted ownership model.
+
 ### Matchup layer (EXPERIMENTAL, off by default) — `core/matchup/`
 The layer asks: do players of a certain type do better or worse than their volume predicts against certain
 kinds of defenses? If so, it nudges projections by at most ±8%. It is only allowed to touch a position after

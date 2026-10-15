@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parent
 SAMPLE = ROOT / "data" / "sample"
 APP_CFG = yaml.safe_load((ROOT / "config" / "app.yaml").read_text())
 CALIBRATE = ":orange-badge[default — calibrate]"
+OWN_MODEL = ROOT / "data" / "ownership_model.json"
 
 st.set_page_config(page_title="DK Lineup Generator", layout="wide")
 ss = st.session_state
@@ -86,6 +87,13 @@ def own_projections_panel():
                 return ss.get("own_raw")
             ss["own_raw"] = lineup_csv(run.table).to_csv(index=False).encode()
             ss["own_run"] = run
+            from core.projections.publish import archive_pool
+            pool = archive_pool(run.table).to_csv(index=False).encode()
+            ss["own_pool"] = pool
+            ss["own_cons_raw"] = cons.getvalue() if cons is not None else None
+            wk = ROOT / "data" / "weekly"
+            wk.mkdir(parents=True, exist_ok=True)
+            (wk / "my_projections.csv").write_bytes(pool)
     run = ss.get("own_run")
     if run is not None:
         for w in run.warnings:
@@ -95,7 +103,16 @@ def own_projections_panel():
             st.success(f"Own model: {pm['players']} players on {pm['teams']} teams.")
         with st.expander("Team volume (plays, pass rate, attempts, TDs per team)"):
             st.dataframe(run.team_check, hide_index=True)
-        st.download_button("Download projections.csv", ss["own_raw"], "my_projections.csv", "text/csv")
+        cal_missing = any("NOT calibrated" in w for w in run.warnings)
+        if cal_missing:
+            st.warning("Calibration skipped: config/calibration.json is missing. Projections are the raw 50/50 blend.")
+        src = run.table["proj_source"].value_counts().to_dict() if "proj_source" in run.table else {}
+        st.caption(f"Projection sources: {src}. The optimizer uses the calibrated projection (proj_cal).")
+        c1, c2 = st.columns(2)
+        c1.download_button("Download projections.csv (lineup format)", ss["own_raw"], "projections.csv", "text/csv")
+        c2.download_button("Download my_projections.csv (weekly pool / archive)", ss["own_pool"], "my_projections.csv",
+                           "text/csv")
+        st.caption("my_projections.csv was also saved to data/weekly/my_projections.csv")
     return ss.get("own_raw")
 
 
@@ -105,6 +122,26 @@ with st.sidebar:
     sport_name = st.selectbox("Sport", available_sports(), index=available_sports().index(APP_CFG["default_sport"]))
     sport = load_sport(sport_name)
     st.caption("NBA arrives in Phase 6 (stub only).")
+    st.divider()
+    with st.expander("Archive this week", expanded=False):
+        from core.archive import archive as archive_week, week_dir
+        a_season = st.number_input("Season", 2016, 2100, 2026, key="arc_season")
+        a_week = st.number_input("Week", 1, 22, 6, key="arc_week")
+        st.caption("Saves the DKSalaries, the DFF/consensus file and the pool export from Build projections. "
+                   "After the slate, add your DK contest standings (small-field / single-entry).")
+        stand = st.file_uploader("DK contest standings CSVs", type=["csv"], accept_multiple_files=True, key="arc_stand")
+        have = {"salaries": ss.get("sal_raw") is not None, "DFF": ss.get("own_cons_raw") is not None,
+                "pool": ss.get("own_pool") is not None}
+        st.caption("Ready: " + ", ".join(f"{k} {'✓' if v else '—'}" for k, v in have.items())
+                   + f", standings {len(stand or [])}")
+        if st.button("Archive", key="arc_go"):
+            msgs = []
+            dest = archive_week(int(a_season), int(a_week), salaries=ss.get("sal_raw"), dff=ss.get("own_cons_raw"),
+                                pool=ss.get("own_pool"), standings={f.name: f.getvalue() for f in stand or []},
+                                log=msgs.append)
+            st.success(f"Saved to {dest.relative_to(ROOT)}: {len(msgs)} files")
+            for m_ in msgs:
+                st.caption(m_)
     st.divider()
     st.caption("Cash break-even rates (net of rake)")
     st.dataframe(break_even_table(), hide_index=True)
@@ -314,9 +351,20 @@ with tabs[3]:
     b = ss.get("build")
     if b is None or not b.ready:
         st.info("Load and fully match projections first.")
-    elif "ownership" not in b.slate or b.slate["ownership"].isna().all():
+    elif ("ownership" not in b.slate or b.slate["ownership"].isna().all()) and not (
+            OWN_MODEL.exists() and b.mode == "classic"):
         st.error("GPP needs projected ownership (map an ownership column on the Projections tab).")
     else:
+        from core.projections.ownership_fit import predict_slate
+        have_model = OWN_MODEL.exists() and b.mode == "classic"
+        no_heur = "ownership" not in b.slate or b.slate["ownership"].isna().all()
+        use_fit = st.toggle("Use fitted ownership model (data/ownership_model.json)", value=have_model,
+                            disabled=not have_model or no_heur,
+                            help="Fit from your own DK standings with scripts/ownership_fit.py. Off = the ownership "
+                                 "column from your projections (v1 heuristic unless your source provides one).")
+        gslate = b.slate.assign(ownership=predict_slate(b.slate)) if use_fit else b.slate
+        st.caption(f"Ownership in use: {'fitted model (your standings)' if use_fit else 'projections column / v1 heuristic'}"
+                   + ("" if have_model else " — no ownership_model.json yet"))
         presets = {k: v for k, v in sport.preset("gpp").items() if isinstance(v, dict) and "lambda_log_own" in v}
         if b.mode == "showdown" and sport.preset("showdown").get("gpp"):
             presets = {"showdown": sport.preset("showdown")["gpp"]}
@@ -338,7 +386,7 @@ with tabs[3]:
             if "sims" not in ss:
                 ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), b.mode)
             with st.spinner("Generating candidates, fitting the field, selecting the portfolio..."):
-                ss["gpp_run"] = run_gpp(sport, b.slate, ss["sims"].scores, contest, int(n_lu), pre, b.mode,
+                ss["gpp_run"] = run_gpp(sport, gslate, ss["sims"].scores, contest, int(n_lu), pre, b.mode,
                                         n_candidates=int(n_cand), optimal_sims=int(opt_n), max_exposure=max_exp)
         run = ss.get("gpp_run")
         if run is not None:

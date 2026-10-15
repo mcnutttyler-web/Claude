@@ -44,7 +44,8 @@ SCHEMA_DST = ["sacks", "def_int", "fum_rec", "def_td", "ret_td", "safety", "bloc
 SCHEMA_K = ["fga_0_39", "fga_40_49", "fga_50_plus", "fgm", "xp"]
 SCHEMA_POINTS = ["mean", "median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp",
                  "p_300_pass", "p_100_rush", "p_100_rec"]
-SCHEMA_OWN = ["own_gpp", "own_cash", "own_cpt", "own_flex"]
+SCHEMA_OWN = ["own_gpp", "own_cash", "own_cpt", "own_flex", "own_heuristic"]
+SCHEMA_CAL = ["proj_model", "proj_dff", "proj_final", "proj_cal", "proj_source"]
 SCHEMA_META = ["source_breakdown", "n_sources", "source_sd", "confidence", "disagreement_flag", "override_flag",
                "p_play", "team_total", "game_total", "spread", "updated_at", "input_hash", "seed"]
 
@@ -194,8 +195,14 @@ def build_projections(
     b = blend(rows, slate, params, weights)
     t = slate.copy()
     t = t.join(b.set_index("dk_index"), how="left")
+    # 50/50 model + consensus with fallback, then per-position calibration (core/projections/recalibrate.py)
+    t, cal, cw = final_calibration(t, params)
+    warnings.extend(cw)
     if model is not None and len(model.rows):
-        t, sw = vegas_sanity(t, model.rows, params)
+        ref = model.rows
+        if cal is not None:
+            ref = calibrate_points(model.rows, slate, cal)
+        t, sw = vegas_sanity(t, ref, params)
         warnings.extend(sw)
     if sport.name == "nfl":
         from core.matchup.apply import slate_multipliers
@@ -273,10 +280,13 @@ def build_projections(
     t["own_cpt"] = t.get("cpt_ownership", np.nan)
     pool = t["mean"].notna() & (t["mean"] > 0)
     if mode == "classic":
+        t["own_heuristic"] = np.nan
+        t.loc[pool, "own_heuristic"] = classic_ownership(t[pool], params, "gpp")
         for col, fld in (("own_gpp", "gpp"), ("own_cash", "cash")):
             if t.loc[pool, col].isna().all():
                 t.loc[pool, col] = classic_ownership(t[pool], params, fld)
                 warnings.append(f"{col}: v1 heuristic estimate (directional)")
+
     else:
         if t.loc[pool, "own_cpt"].isna().all():
             cpt, flex = showdown_ownership(t[pool], params, "gpp")
@@ -292,7 +302,7 @@ def build_projections(
                          + [s.path for s in sources])
     t["updated_at"], t["input_hash"], t["seed"] = now, ihash, seed
 
-    cols = SCHEMA_IDENTITY + SCHEMA_STATS + SCHEMA_DST + SCHEMA_K + SCHEMA_POINTS + SCHEMA_OWN + SCHEMA_META
+    cols = SCHEMA_IDENTITY + SCHEMA_STATS + SCHEMA_DST + SCHEMA_K + SCHEMA_POINTS + SCHEMA_OWN + SCHEMA_CAL + SCHEMA_META
     for c in cols:
         if c not in t.columns:
             t[c] = np.nan
@@ -398,12 +408,89 @@ def vegas_sanity(t: pd.DataFrame, model_rows: pd.DataFrame, params: Params) -> t
     return t, notes
 
 
+def calibration_path(params: Params) -> Path:
+    from core.projections.params import ROOT
+    p = Path(str((params.get("bottomup.calibration") or {}).get("file", "config/calibration.json")))
+    return p if p.is_absolute() else ROOT / p
+
+
+def _component(breakdown: str, comp: str) -> float:
+    try:
+        v = (json.loads(breakdown).get(comp) or {}).get("value")
+        return float(v) if v is not None else np.nan
+    except (TypeError, ValueError):
+        return np.nan
+
+
+def final_calibration(t: pd.DataFrame, params: Params):
+    """proj_final = blend_with_fallback(model, consensus) (rookies -> 100% consensus), then apply_calibration per
+    position -> proj_cal, which becomes `mean` (and the optimizer's projection). Rows with a market (props)
+    component keep the 3-way blend as proj_final. Missing calibration file -> warning, proj_cal = proj_final."""
+    from core.projections.recalibrate import apply_calibration, blend_with_fallback, load_calibration
+    if "source_breakdown" not in t:
+        return t, None, []
+    t = t.copy()
+    has = t["mean"].notna()
+    bd = t["source_breakdown"].where(has, None)
+    d = pd.DataFrame({"proj_model": [_component(x, "model") if x else np.nan for x in bd],
+                      "proj_dff": [_component(x, "consensus") if x else np.nan for x in bd],
+                      "market": [_component(x, "market") if x else np.nan for x in bd],
+                      "pos": t["position"].to_numpy()}, index=t.index)
+    w = params.get("blend.component_weights.without_props")
+    w_model = float(w.get("model", 0.5)) / max(float(w.get("model", 0.5)) + float(w.get("consensus", 0.5)), 1e-9)
+    d = blend_with_fallback(d, "proj_model", "proj_dff", w_model)
+    mkt = d["market"].notna()
+    d.loc[mkt | d["proj_final"].isna(), "proj_final"] = t.loc[mkt | d["proj_final"].isna(), "mean"]
+    d.loc[mkt, "proj_source"] = "blend_with_market"
+    t["proj_model"], t["proj_dff"], t["proj_final"], t["proj_source"] = d["proj_model"], d["proj_dff"], \
+        d["proj_final"], d["proj_source"].where(has, "none")
+    path = calibration_path(params)
+    if not path.exists():
+        t["proj_cal"] = t["proj_final"]
+        t.loc[has, "mean"] = t.loc[has, "proj_final"]
+        return t, None, [f"calibration file {path.name} not found — projections are NOT calibrated "
+                         f"(run: python scripts/recalibrate.py data/backtest.csv --out config/calibration.json)"]
+    cal = load_calibration(str(path))
+    pos_on = set((params.get("bottomup.calibration") or {}).get("positions", list(cal)))
+    cal = {p: c for p, c in cal.items() if p in pos_on}
+    d = apply_calibration(d.assign(proj_final=t["proj_final"]), cal, proj_col="proj_final", pos_col="pos",
+                          out_col="proj_cal")
+    t["proj_cal"] = d["proj_cal"]
+    t.loc[has, "mean"] = t.loc[has, "proj_cal"]
+    n_fb = int((t["proj_source"] == "consensus_fallback").sum())
+    return t, cal, [f"calibrated per position ({', '.join(sorted(cal))}) from {path.name}"
+                    + (f"; {n_fb} players without a model projection use 100% consensus" if n_fb else "")]
+
+
+def calibrate_points(mrows: pd.DataFrame, slate: pd.DataFrame, cal: dict) -> pd.DataFrame:
+    """Calibrated copy of the own model's rows (the Vegas sanity reference must be on the same scale)."""
+    from core.projections.recalibrate import apply_calibration
+    if not len(mrows):
+        return mrows
+    d = mrows.assign(pos=slate.loc[mrows["dk_index"].astype(int), "position"].to_numpy())
+    d = apply_calibration(d, cal, proj_col="points", pos_col="pos", out_col="points_cal")
+    return mrows.assign(points=d["points_cal"].fillna(mrows["points"]).to_numpy())
+
+
+def archive_pool(table: pd.DataFrame) -> pd.DataFrame:
+    """my_projections.csv for scripts/archive_week.py + ownership_fit.py: name, pos, salary, proj, team, team_total,
+    own_heuristic (v1 %, 0-100)."""
+    t = table[table["mean"].notna()]
+    proj = t["proj_cal"] if "proj_cal" in t else t["mean"]
+    out = pd.DataFrame({"name": t["name"], "pos": t["position"], "salary": t["salary"], "proj": proj.round(3),
+                        "team_total": t["team_total"]})
+    if "own_heuristic" in t:
+        out["own_heuristic"] = (100 * t["own_heuristic"]).round(2)
+    return out
+
+
 def lineup_csv(table: pd.DataFrame) -> pd.DataFrame:
     """The lineup generator's projections.csv (DK names so matching is exact)."""
     t = table[table["mean"].notna()]
     out = pd.DataFrame({
         "name": t["name"].str.strip(), "team": t["team"], "position": t["position"],
-        "median": t["median"].round(3),
+        "median": (t["proj_cal"] if "proj_cal" in t and t["proj_cal"].notna().any() else t["median"]).round(3),
+        "sim_median": t["median"].round(3),
         "floor": t["p10"].where(t["p10"].notna(), t["floor"]), "ceiling": t["p90"].where(t["p90"].notna(), t["ceiling"]),
         "ownership": t["own_gpp"], "cash_ownership": t["own_cash"], "cpt_ownership": t["own_cpt"],
         "team_total": t["team_total"], "game_total": t["game_total"], "spread": t["spread"],
@@ -424,6 +511,8 @@ def publish(run: ProjectionRun, out_dir: str | Path) -> dict[str, Path]:
     tbl["lock_time"] = tbl["lock_time"].astype(str)
     tbl.to_parquet(paths["parquet"], index=False)
     lineup_csv(run.table).to_csv(paths["csv"], index=False)
+    paths["archive_pool"] = out / "my_projections.csv"
+    archive_pool(run.table).to_csv(paths["archive_pool"], index=False)
     run.team_check.to_csv(paths["team_check"], index=False)
     sim = getattr(run, "sims", None)
     if sim is not None:

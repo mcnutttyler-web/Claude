@@ -280,3 +280,32 @@ def test_schedule_lines_fallback(nfl_dir, tmp_path):
     t = run.table.drop_duplicates("team").set_index("team")
     assert t.at["AAA", "team_total"] == pytest.approx(27.5) and t.at["DDD", "team_total"] == pytest.approx(23.5)
     (nfl_dir / "games.csv").unlink()
+
+
+def test_rookie_without_history_uses_consensus_end_to_end(nfl_dir, tmp_path):
+    from core.projections.recalibrate import load_calibration
+    from core.projections.publish import calibration_path
+    from core.projections.sources import SourceSpec
+    sal = pd.read_csv(_salaries(tmp_path))
+    rook = sal[sal["Name"] == "Aaa WR3"].copy()
+    rook["Name"], rook["ID"] = "Aaa Rookie", 8888
+    sal = pd.concat([sal, rook])
+    sp = tmp_path / "sal_rookie.csv"
+    sal.to_csv(sp, index=False)
+    cons = pd.DataFrame({"name": ["Aaa Rookie", "Aaa WR1"], "team": ["AAA", "AAA"], "position": ["WR", "WR"],
+                         "median": [11.0, 14.0]})
+    cp = tmp_path / "cons.csv"
+    cons.to_csv(cp, index=False)
+    odds = tmp_path / "odds.csv"
+    pd.DataFrame([{"book": "x", "away": "BBB", "home": "AAA", "spread_home": -7, "total": 48},
+                  {"book": "x", "away": "DDD", "home": "CCC", "spread_home": 0, "total": 44}]).to_csv(odds, index=False)
+    run = build_projections(sp, [SourceSpec("dff", str(cp))], SPORT, odds=odds, nflverse_dir=nfl_dir,
+                            simulate_outcomes=False)
+    t = run.table.set_index("name")
+    assert t.at["Aaa Rookie", "proj_source"] == "consensus_fallback"
+    assert t.at["Aaa Rookie", "proj_final"] == pytest.approx(11.0)
+    cal = load_calibration(str(calibration_path(PARAMS)))["WR"]
+    assert t.at["Aaa Rookie", "mean"] == pytest.approx(float(cal.correct(np.array([11.0]))[0]), abs=1e-6)
+    assert t.at["Aaa WR1", "proj_source"] == "blend"
+    csv = lineup_csv(run.table).set_index("name")
+    assert csv.at["Aaa Rookie", "median"] == pytest.approx(t.at["Aaa Rookie", "proj_cal"], abs=1e-3)
