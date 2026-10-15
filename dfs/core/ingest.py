@@ -189,8 +189,10 @@ def build_slate(
     if "status" in slate:
         slate["status"] = slate["status"].fillna("").astype(str).str.upper()
         q = slate[slate["status"].isin(sport.status_warn) & (slate["median"] > 0)]
-        for _, r in q.iterrows():
-            warnings.append(f"Questionable: {r['name']} ({r['team']}) status={r['status']}")
+        if len(q):
+            q = q.sort_values("median", ascending=False)
+            names = ", ".join(f"{r['name']} ({r['team']})" for _, r in q.iterrows())
+            warnings.append(f"{len(q)} Questionable players (check news before lock): {names}")
     else:
         slate["status"] = ""
     if "weather_flag" in slate:
