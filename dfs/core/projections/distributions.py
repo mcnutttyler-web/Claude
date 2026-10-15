@@ -185,9 +185,9 @@ def simulate(table: pd.DataFrame, params: Params, scoring: dict, n_sims: int | N
     for j, i in enumerate(cols):
         a = active[:, j]
         x = cond[a, j] if a.any() else cond[:, j]
-        q = np.percentile(x, [10, 25, 50, 75, 90])
+        q = np.percentile(x, [10, 25, 50, 75, 85, 90])
         r = {"dk_index": i, "sim_mean": float(x.mean()), "median": q[2], "p10": q[0], "p25": q[1], "p75": q[3],
-             "p90": q[4], "std": float(x.std()), "sim_mean_mixture": float(sims[:, j].mean())}
+             "p85": q[4], "p90": q[5], "std": float(x.std()), "sim_mean_mixture": float(sims[:, j].mean())}
         if sal[j] == sal[j]:
             r["p_value_cash"] = float((x >= vl_cash * sal[j] / 1000).mean())
             r["p_value_gpp"] = float((x >= vl_gpp * sal[j] / 1000).mean())

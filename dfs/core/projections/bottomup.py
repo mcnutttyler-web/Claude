@@ -301,6 +301,7 @@ class ModelResult:
     dropbacks: dict[str, float]
     notes: list[str] = field(default_factory=list)
     unmodeled: list[str] = field(default_factory=list)
+    news_teams: dict = field(default_factory=dict)   # team -> [Out players who had a real role] (late-news teams)
 
 
 def _redistribute(share: dict, out: set, pos: dict, frac_same: float, top_only: bool = False,
@@ -345,7 +346,7 @@ def run_model(slate: pd.DataFrame, env: pd.DataFrame, cur: dict, prior: dict | N
     disp = {"cv": params.get("stat_conversion.bonus_cv"), "pa_sigma": params.get("stat_conversion.pa_sigma")}
     shrink = params.get("bottomup.top_end_shrink")
     E = env.set_index("team")
-    rows, trows, notes, dropbacks = [], [], [], {}
+    rows, trows, notes, dropbacks, news_teams = [], [], [], {}, {}
     unmodeled = [f"{slate.at[i, 'name']} ({slate.at[i, 'team']})" for i in slate.index
                  if slate.at[i, "position"] in SKILL and i not in id_of.index]
 
@@ -373,6 +374,11 @@ def run_model(slate: pd.DataFrame, env: pd.DataFrame, cur: dict, prior: dict | N
         catchers = [i for i in idx if pos[i] in ("RB", "WR", "TE")]
         pres = {i: float(pr[i].get("presence", 1.0)) for i in idx}
         wr1 = max([i for i in catchers if pos[i] == "WR"], key=lambda i: pr[i]["tgt_share"] * pres[i], default=None)
+        key_out = [i for i in is_out if pres[i] >= 0.5 and (
+            (pos[i] == "QB" and i == qb1_all) or float(pr[i]["tgt_share"] or 0) >= 0.10
+            or float(pr[i]["carry_share"] or 0) >= 0.25)]
+        if key_out:
+            news_teams[team] = [slate.at[i, "name"] for i in key_out]
 
         plays = B["league_plays"] if B.get("league_plays") else lg.plays
         plays = plays * (T["plays_pg"] / lg.plays) * (1 + B["plays_per_itt_pt"] * (itt - lg_itt))
@@ -467,4 +473,4 @@ def run_model(slate: pd.DataFrame, env: pd.DataFrame, cur: dict, prior: dict | N
                       "qb1": slate.at[qb1, "name"] if qb1 is not None else ""})
     cols = ["dk_index", "source", "component", "points"]
     return ModelResult(pd.DataFrame(rows) if rows else pd.DataFrame(columns=cols), pd.DataFrame(trows), defense_inputs(cur, prior, params), dropbacks,
-                       notes, unmodeled)
+                       notes, unmodeled, news_teams)

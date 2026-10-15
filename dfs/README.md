@@ -119,11 +119,12 @@ These came from the user-supplied `recalibrate.py`, `archive_week.py` and `owner
 `core/projections/recalibrate.py`, `core/archive.py` and `core/projections/ownership_fit.py`, with CLI wrappers
 in `scripts/`.
 
-The projection order is:
-1. Own model and consensus are blended 50/50 (`blend_with_fallback`). A player with no model projection, such as
-   a rookie, uses 100% consensus instead of being dropped.
-2. Per-position calibration is applied from `config/calibration.json` (`apply_calibration`), giving `proj_cal`.
-3. `proj_cal` is the projection the optimizer uses.
+The projection order (since the Oct 15 review; see `docs/REVIEW_2026-10-15_DECISIONS.md`) is:
+1. The own model is calibrated per position with `config/calibration.json`.
+2. The calibrated model is blended 50/50 with the consensus (all uploaded sources, equal weight).
+   - A player with no model projection, such as a rookie, uses 100% consensus.
+   - A team with a key player ruled Out leans 25/75 toward consensus.
+3. The result, `proj_cal`, is the projection the optimizer uses.
 
 Calibration details:
 - It is fit only inside the projection range the backtest saw, so low projections aren't extrapolated.
@@ -157,6 +158,22 @@ In the app:
 - The sidebar **Archive this week** saves the salaries, DFF and pool files, plus any DK standings you upload, to
   `data/archive/<season>/w<NN>/`.
 - The GPP tab has a toggle for the fitted ownership model.
+
+### Weekly scorecard (measure the process, not ROI)
+Archive before lock: once Saturday, and again Sunday after inactives, so the news check works. After the games,
+archive your DK standings, settle on the Tracking tab, then click **Tracking → Weekly scorecard**. You can also run
+`python scripts/weekly_scorecard.py 2026 6`.
+
+It reports:
+- MAE, bias and relative MAE for model, calibrated model, DFF, OWS, consensus and final, all on the same pool
+- p10/p85/p90 coverage
+- ownership error vs actual %Drafted, plus the chalk check
+- cash predicted vs actual (Brier score)
+- sim-vs-shadow cash lineup points
+- the Saturday → Sunday news check
+
+Each week's numbers are appended to `data/archive/scorecard_history.csv`. Read 4+ week averages before changing
+anything.
 
 ### Matchup layer (EXPERIMENTAL, off by default) — `core/matchup/`
 The layer asks: do players of a certain type do better or worse than their volume predicts against certain

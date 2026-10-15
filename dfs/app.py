@@ -273,6 +273,16 @@ with tabs[2]:
         names = b.slate["name"] + " (" + b.slate["team"] + ")"
         locks = st.multiselect("Lock", list(names.index), format_func=lambda i: names[i])
         excl = st.multiselect("Exclude", list(names.index), format_func=lambda i: names[i])
+        # review 3d: a play/sit mixture mean never happens; in H2H don't roster an unconfirmed early player
+        q_early = [int(i) for i in b.slate.index
+                   if str(b.slate.at[i, "status"]).upper() in {s_.upper() for s_ in sport.status_warn}
+                   and str(b.slate.at[i, "lock_window"]) == "early"] if "lock_window" in b.slate else []
+        skip_q = st.checkbox(f"Skip Questionable players in early games ({len(q_early)}) — no late-swap pivot",
+                             value=True, help="Their projection is a play/sit average that never actually happens. "
+                                              "Late-window Q players stay eligible (you can swap them after news).")
+        if skip_q and q_early:
+            st.caption("Skipped: " + ", ".join(names[i] for i in q_early))
+            excl = sorted(set(excl) | set(q_early))
         if st.button("Build cash lineup", type="primary"):
             try:
                 res = objective_a(sport, b.slate, mode, k=k, locks=locks, excludes=excl, min_salary=min_sal)
@@ -329,6 +339,22 @@ with tabs[2]:
             ss["cash"] = CashResult(lus, describe(lus, b.slate, spec), [], {"source": "sim engine"})
             st.caption(f"Field ownership error {fld.info['max_own_error']:.3f}; candidates {rep.info['n_candidates']}")
         rep = ss.get("cash_report")
+        if rep is not None and rep.results:
+            # review 3a: shadow lineup = plain max-median (Objective A). If the sim pick matches it most weeks, the
+            # sim engine is cosmetic — the weekly scorecard scores both.
+            first = next(iter(rep.results.values()))
+            sim_lu, shadow = first.recommended, rep.objective_a
+            same = len(set(sim_lu.players) & set(shadow.players))
+            st.info(f"Shadow check: the sim pick shares {same}/9 players with the plain max-median lineup.")
+            if st.button("Save sim + shadow lineups to this week's archive", key="save_shadow"):
+                from core.archive import week_dir
+                rows = [{"kind": kind, "name": b.slate.at[i, "name"], "id": b.slate.at[i, "id"]}
+                        for kind, lu in (("sim", sim_lu), ("shadow", shadow)) for i in lu.players]
+                d_ = week_dir(int(ss.get("arc_season", 2026)), int(ss.get("arc_week", 1)))
+                d_.mkdir(parents=True, exist_ok=True)
+                pd.DataFrame(rows).to_csv(d_ / "cash_lineups.csv", index=False)
+                st.success(f"Saved to {d_.relative_to(ROOT)}/cash_lineups.csv (week from the sidebar archive box)")
+        rep = ss.get("cash_report")
         if rep is not None:
             for ctype, r in rep.results.items():
                 st.markdown(f"**{r.contest.name}** — break-even {r.contest.cash_rate_needed:.1%}, "
@@ -367,19 +393,27 @@ with tabs[3]:
     if b is None or not b.ready:
         st.info("Load and fully match projections first.")
     elif ("ownership" not in b.slate or b.slate["ownership"].isna().all()) and not (
-            OWN_MODEL.exists() and b.mode == "classic"):
+            OWN_MODEL.exists() and b.mode == "classic"):  # (the bias correction needs a source ownership column)
         st.error("GPP needs projected ownership (map an ownership column on the Projections tab).")
     else:
-        from core.projections.ownership_fit import predict_slate
-        have_model = OWN_MODEL.exists() and b.mode == "classic"
+        from core.projections.ownership_fit import BIAS_PATH, predict_bias_slate, predict_slate
         no_heur = "ownership" not in b.slate or b.slate["ownership"].isna().all()
-        use_fit = st.toggle("Use fitted ownership model (data/ownership_model.json)", value=have_model,
-                            disabled=not have_model or no_heur,
-                            help="Fit from your own DK standings with scripts/ownership_fit.py. Off = the ownership "
-                                 "column from your projections (v1 heuristic unless your source provides one).")
-        gslate = b.slate.assign(ownership=predict_slate(b.slate)) if use_fit else b.slate
-        st.caption(f"Ownership in use: {'fitted model (your standings)' if use_fit else 'projections column / v1 heuristic'}"
-                   + ("" if have_model else " — no ownership_model.json yet"))
+        have_bias = BIAS_PATH.exists() and b.mode == "classic" and not no_heur
+        have_model = OWN_MODEL.exists() and b.mode == "classic"
+        label = ("Use your ownership correction (data/ownership_bias.json)" if have_bias
+                 else "Use fitted ownership model (data/ownership_model.json)")
+        use_fit = st.toggle(label, value=have_bias or have_model, disabled=not (have_bias or have_model),
+                            help="Fit from your own DK standings: scripts/ownership_fit.py --fit-bias (2-parameter "
+                                 "per-position correction of OWS, preferred) or --fit. Off = the projections' ownership.")
+        if use_fit and have_bias:
+            gslate = b.slate.assign(ownership=predict_bias_slate(b.slate))
+        elif use_fit and have_model:
+            gslate = b.slate.assign(ownership=predict_slate(b.slate))
+        else:
+            gslate = b.slate
+        st.caption("Ownership in use: " + ("source corrected by your standings" if use_fit and have_bias else
+                                           "fitted model (your standings)" if use_fit else
+                                           "projections column (OWS / v1 heuristic)"))
         presets = {k: v for k, v in sport.preset("gpp").items() if isinstance(v, dict) and "lambda_log_own" in v}
         if b.mode == "showdown" and sport.preset("showdown").get("gpp"):
             presets = {"showdown": sport.preset("showdown")["gpp"]}
@@ -470,6 +504,27 @@ with tabs[6]:
 with tabs[8]:
     from core import tracking
     st.subheader("Tracking")
+    with st.expander("Weekly scorecard (run Tuesday, after the games and after archiving your standings)",
+                     expanded=False):
+        st.caption("Scores every projection column (model, DFF, OWS, blend) on the same pool, outcome-range coverage, "
+                   "ownership vs actual %Drafted, cash predictions vs results and the sim-vs-shadow lineups. "
+                   "One week is noise — read the 4+ week averages.")
+        c1_, c2_ = st.columns(2)
+        sc_season = c1_.number_input("Season", 2016, 2100, int(ss.get("arc_season", 2026)), key="sc_season")
+        sc_week = c2_.number_input("Week", 1, 22, int(ss.get("arc_week", 1)), key="sc_week")
+        if st.button("Build scorecard", key="sc_go"):
+            from core.projections import nflverse as _nv
+            from core.scorecard import write as write_scorecard
+            try:
+                with st.spinner("Downloading results and scoring the week..."):
+                    _nv.fetch([int(sc_season)], dest=_nv.DEFAULT_DIR, log=lambda m: None)
+                    out_ = write_scorecard(int(sc_season), int(sc_week), sport.team_aliases)
+                st.markdown(out_.read_text())
+                st.caption(f"Saved {out_.relative_to(ROOT)}; history in data/archive/scorecard_history.csv")
+            except FileNotFoundError:
+                st.error("No archive for that week — use the sidebar 'Archive this week' before lock first.")
+            except Exception as e:  # surface, don't crash the tab
+                st.error(f"Scorecard failed: {e}")
     st.caption("Entries are logged from the Export tab (with the model's prediction). Settle them with DK's "
                "contest-history export (My Contests → Download).")
     hist_up = st.file_uploader("DK contest history CSV", type=["csv"], key="hist")

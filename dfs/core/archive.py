@@ -41,16 +41,27 @@ def _prev_salaries(season: int, week: int, root: Path) -> pd.DataFrame | None:
 
 
 def archive(season: int, week: int, root: str | Path = DEFAULT_ROOT, salaries=None, dff=None, pool=None,
-            standings: list | dict | None = None, log=print, sources: dict | None = None) -> Path:
-    """Copy this week's files into the archive. standings: list of paths, or {filename: bytes}."""
+            standings: list | dict | None = None, log=print, sources: dict | None = None,
+            stamp: str | None = None) -> Path:
+    """Copy this week's files into the archive. standings: list of paths, or {filename: bytes}.
+    Projection inputs (dff, sources, pool) are ALSO kept as time-stamped snapshots under snapshots/<stamp>/, so a
+    Saturday build and the Sunday-final rebuild can be compared later (review: 'CLV-like' check)."""
+    from datetime import datetime
     dest = week_dir(season, week, root)
     dest.mkdir(parents=True, exist_ok=True)
+    stamp = stamp or datetime.now().strftime("%Y%m%d-%H%M")
+    snap = dest / "snapshots" / stamp
+    if dff is not None or sources or pool is not None:
+        snap.mkdir(parents=True, exist_ok=True)
     for name, src in (("dk_salaries.csv", salaries), ("dff.csv", dff)):
         if src is not None:
             _put(src, dest / name)
             log(f"  -> {dest / name}")
+            if name == "dff.csv":
+                _put(src, snap / name)
     for name, src in (sources or {}).items():
         _put(src, dest / f"source_{name}.csv")
+        _put(src, snap / f"source_{name}.csv")
         log(f"  -> {dest / f'source_{name}.csv'}")
     if pool is not None:
         df = pd.read_csv(io.BytesIO(pool)) if isinstance(pool, (bytes, bytearray)) else pd.read_csv(pool)
@@ -58,6 +69,7 @@ def archive(season: int, week: int, root: str | Path = DEFAULT_ROOT, salaries=No
         if prev is not None and "prev_salary" not in df:
             df = df.merge(prev, on="name", how="left")
         df.to_csv(dest / "my_projections.csv", index=False)
+        df.to_csv(snap / "my_projections.csv", index=False)
         log(f"  -> {dest / 'my_projections.csv'}" + (" (prev_salary from last week)" if prev is not None else ""))
     items = standings.items() if isinstance(standings, dict) else [(os.path.basename(str(p)), p) for p in standings or []]
     for fname, src in items:

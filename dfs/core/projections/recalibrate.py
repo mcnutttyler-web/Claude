@@ -123,6 +123,24 @@ def blend_with_fallback(df: pd.DataFrame, model_col="proj_model", cons_col="proj
     return out
 
 
+def top_decile(df: pd.DataFrame, cal: dict | None = None, pos_col="pos", proj_col="proj", actual_col="actual",
+               q: float = 0.9) -> pd.DataFrame:
+    """Review 4.3: are the TOP projections compressed? For the top 10% of projections per position: mean projection
+    vs mean actual (raw, and calibrated if cal is given). Actual > projected means the top end is squeezed."""
+    rows = []
+    for pos, g in df.groupby(pos_col):
+        top = g[g[proj_col] >= g[proj_col].quantile(q)]
+        r = {"pos": pos, "n": len(top), "proj_mean": top[proj_col].mean(), "actual_mean": top[actual_col].mean()}
+        if cal:
+            r["cal_mean"] = apply_calibration(top, cal, proj_col, pos_col)["proj_cal"].mean()
+        rows.append(r)
+    out = pd.DataFrame(rows)
+    out["actual_minus_proj"] = out["actual_mean"] - out["proj_mean"]
+    if "cal_mean" in out:
+        out["actual_minus_cal"] = out["actual_mean"] - out["cal_mean"]
+    return out.round(2)
+
+
 def save_calibration(cal: dict[str, PosCal], path: str) -> None:
     with open(path, "w") as f:
         json.dump({k: asdict(v) for k, v in cal.items()}, f, indent=2)
@@ -151,11 +169,27 @@ def walk_forward(df: pd.DataFrame, pos_col="pos", proj_col="proj", actual_col="a
     if not parts:
         raise ValueError("Not enough weeks for walk-forward.")
     res = pd.concat(parts)
+    rng = np.random.default_rng(0)
     rows = []
     for pos, g in res.groupby(pos_col):
         e_raw = g[proj_col] - g[actual_col]
         e_cal = g["proj_cal"] - g[actual_col]
+        # block bootstrap by week (errors are correlated within a slate): 95% CI of the RMSE and bias changes
+        wk = g["_t"].to_numpy()
+        uw = np.unique(wk)
+        se_raw = (e_raw ** 2).groupby(wk).agg(["sum", "count"])
+        se_cal = (e_cal ** 2).groupby(wk).agg(["sum", "count"])
+        b_raw, b_cal = e_raw.groupby(wk).sum(), e_cal.groupby(wk).sum()
+        dr, db = [], []
+        for _ in range(1000):
+            pick = rng.choice(uw, len(uw))
+            n = se_raw.loc[pick, "count"].sum()
+            dr.append(np.sqrt(se_cal.loc[pick, "sum"].sum() / n) - np.sqrt(se_raw.loc[pick, "sum"].sum() / n))
+            db.append(abs(b_cal.loc[pick].sum() / n) - abs(b_raw.loc[pick].sum() / n))
+        ci = {"rmse_change_lo": np.percentile(dr, 2.5), "rmse_change_hi": np.percentile(dr, 97.5),
+              "abs_bias_change_lo": np.percentile(db, 2.5), "abs_bias_change_hi": np.percentile(db, 97.5)}
         rows.append({
+            **ci,
             "pos": pos, "n": len(g),
             "mae_raw": e_raw.abs().mean(), "mae_cal": e_cal.abs().mean(),
             "rmse_raw": np.sqrt((e_raw ** 2).mean()), "rmse_cal": np.sqrt((e_cal ** 2).mean()),
@@ -164,6 +198,9 @@ def walk_forward(df: pd.DataFrame, pos_col="pos", proj_col="proj", actual_col="a
     rep = pd.DataFrame(rows)
     rep["mae_change"] = rep["mae_cal"] - rep["mae_raw"]
     rep["rmse_change"] = rep["rmse_cal"] - rep["rmse_raw"]
+    lead = ["pos", "n", "mae_raw", "mae_cal", "rmse_raw", "rmse_cal", "bias_raw", "bias_cal", "mae_change",
+            "rmse_change", "rmse_change_lo", "rmse_change_hi", "abs_bias_change_lo", "abs_bias_change_hi"]
+    rep = rep[[c for c in lead if c in rep]]
     return rep.round(3)
 
 
@@ -186,6 +223,13 @@ def main():
                            a.week_col, prior_strength=a.prior_strength)
         print("\nWalk-forward (negative mae_change = calibration helps):")
         print(rep.to_string(index=False))
+        print("\nIntervals are 95% block-bootstrap (by week). A CI that spans 0 means the change is within noise.")
+        try:
+            cal_all = fit_all(df, a.pos_col, a.proj_col, a.actual_col, a.prior_strength)
+            print("\nTop-decile check (in-sample; actual > projected = top end compressed):")
+            print(top_decile(df, cal_all, a.pos_col, a.proj_col, a.actual_col).to_string(index=False))
+        except Exception as e:  # never block the main report
+            print(f"(top-decile check skipped: {e})")
         print("\nShip it if bias_cal is near 0 everywhere and rmse_change <= 0. MAE rewards the MEDIAN; for right-skewed"
               "\npositions (WR/TE) a mean-correct projection can raise MAE slightly while fixing the bias the optimizer sees.")
         return

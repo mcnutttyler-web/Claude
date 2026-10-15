@@ -75,7 +75,10 @@ def parse_standings(path: str) -> pd.DataFrame:
     df = df[df["player"].str.strip() != ""]
     df["own"] = pd.to_numeric(df["drafted"].str.replace("%", "", regex=False), errors="coerce") / 100
     df["name_key"] = df["player"].map(norm_name)
-    return df.dropna(subset=["own"]).drop_duplicates("name_key")[["name_key", "own"]]
+    ent = raw[cols["entryid"]] if "entryid" in cols else raw.iloc[:, 0]
+    df = df.dropna(subset=["own"]).drop_duplicates("name_key")[["name_key", "own"]]
+    df["entries"] = max(int((ent.astype(str).str.strip() != "").sum()), 1)     # contest size
+    return df
 
 
 def load_slate(slate_dir: str, root: str = ".") -> pd.DataFrame | None:
@@ -85,10 +88,15 @@ def load_slate(slate_dir: str, root: str = ".") -> pd.DataFrame | None:
         return None
     pool = pd.read_csv(pool_path)
     pool["name_key"] = pool["name"].map(norm_name)
-    # average ownership across multiple same-type contests for that slate
-    own = pd.concat([parse_standings(p) for p in stand]).groupby("name_key", as_index=False)["own"].mean()
-    df = pool.merge(own, on="name_key", how="left")
+    # average ownership across that slate's contests, weighted by contest size (a 100-entry contest's %Drafted
+    # has ~4 pts binomial noise at 20% owned)
+    st = pd.concat([parse_standings(p) for p in stand])
+    own = st.groupby("name_key").apply(lambda g: np.average(g["own"], weights=g["entries"]),
+                                       include_groups=False).rename("own").reset_index()
+    own["entries"] = int(st.drop_duplicates("entries")["entries"].sum())
+    df = pool.merge(own[["name_key", "own"]], on="name_key", how="left")
     df["own"] = df["own"].fillna(0.0)  # in pool but nobody rostered = 0%
+    df["entries"] = int(own["entries"].iloc[0]) if len(own) else 1
     df["slate"] = os.path.relpath(slate_dir, root)
     matched = df["own"].gt(0).sum()
     if matched < 0.8 * len(own):
@@ -185,6 +193,50 @@ def heuristic(d: pd.DataFrame) -> pd.Series:
     return normalize(tmp, "_h")
 
 
+# ---------- review 2a: 2-parameter per-position correction of a published ownership projection ----------
+
+BIAS_PATH = Path(__file__).resolve().parents[2] / "data" / "ownership_bias.json"
+
+
+def fit_bias(d: pd.DataFrame, prior: float = 30.0) -> dict:
+    """logit(actual) = a_pos + b_pos * logit(source), ridge toward a=0, b=1 (prior = pseudo-observations), rows
+    weighted by contest size. Captures the documented bias ('chalk ends up chalkier': b > 1) without overfitting."""
+    x_all = d[d["own_source"].notna()]
+    out = {}
+    for pos, g in x_all.groupby("pos"):
+        x = _logit(g["own_source"].to_numpy(float) / 100)
+        y = _logit(g["own"].to_numpy(float))
+        w = g["entries"].to_numpy(float) if "entries" in g else np.ones(len(g))
+        w = w / w.mean()
+        xm = np.average(x, weights=w)
+        X = np.column_stack([np.ones(len(x)), x - xm])
+        W = np.diag(w)
+        lam = prior * np.diag([1.0, max(np.average((x - xm) ** 2, weights=w), 1e-6)])
+        beta = np.linalg.solve(X.T @ W @ X + lam, X.T @ W @ y + lam @ np.array([xm, 1.0]))
+        out[pos] = {"a": float(beta[0] - beta[1] * xm), "b": float(beta[1]), "n": int(len(g))}
+    return out
+
+
+def predict_bias(model: dict, d: pd.DataFrame) -> pd.Series:
+    """Corrected ownership (0-1) from own_source (%), normalized to roster totals per slate."""
+    src = d["own_source"].fillna(0.0).to_numpy(float) / 100
+    z = _logit(src)
+    a = d["pos"].map(lambda p: model.get(p, {}).get("a", 0.0)).to_numpy(float)
+    b = d["pos"].map(lambda p: model.get(p, {}).get("b", 1.0)).to_numpy(float)
+    raw = 1 / (1 + np.exp(-(a + b * z)))
+    raw = np.where(src > 0, raw, 0.0)
+    return normalize(d.assign(_b=raw), "_b")
+
+
+def predict_bias_slate(slate: pd.DataFrame, model: dict | None = None, path: Path = BIAS_PATH) -> pd.Series:
+    """Lineup-generator slate (position, ownership 0-1 from the source) -> corrected ownership aligned to index."""
+    if model is None:
+        model = json.loads(Path(path).read_text())
+    d = pd.DataFrame({"pos": slate["position"].map(norm_pos), "own_source": 100 * slate["ownership"].fillna(0.0),
+                      "slate": "current"}, index=slate.index)
+    return predict_bias(model, d).reindex(slate.index).fillna(0.0)
+
+
 def cross_validate(d: pd.DataFrame, alpha: float = 3.0) -> pd.DataFrame:
     slates = sorted(d["slate"].unique())
     if len(slates) < 3:
@@ -203,6 +255,9 @@ def cross_validate(d: pd.DataFrame, alpha: float = 3.0) -> pd.DataFrame:
         if "own_source" in test and test["own_source"].notna().any():     # published ownership (e.g. OWS)
             psrc = normalize(test.assign(_s=test["own_source"].fillna(0) / 100), "_s")
             row["mae_source"] = 100 * (psrc - test["own"])[rel].abs().mean()
+            if "own_source" in train and train["own_source"].notna().any():
+                pb = predict_bias(fit_bias(train), test)
+                row["mae_source_corrected"] = 100 * (pb - test["own"])[rel].abs().mean()
         rows.append(row)
     rep = pd.DataFrame(rows)
     rep["model_wins"] = rep["mae_model"] < rep["mae_heur"]
@@ -214,11 +269,21 @@ def main():
     ap.add_argument("archive")
     ap.add_argument("--cv", action="store_true")
     ap.add_argument("--fit", action="store_true")
+    ap.add_argument("--fit-bias", action="store_true", help="fit the 2-parameter correction of own_source (OWS)")
     ap.add_argument("--predict", metavar="PROJECTIONS_CSV")
     ap.add_argument("--model", default=str(MODEL_PATH))
     ap.add_argument("--alpha", type=float, default=3.0)
     a = ap.parse_args()
 
+    if a.fit_bias:
+        dd = build_features(load_archive(a.archive))
+        if "own_source" not in dd or dd["own_source"].isna().all():
+            raise SystemExit("no own_source column in the archive (build with an ownership source such as OWS)")
+        m = fit_bias(dd)
+        BIAS_PATH.write_text(json.dumps(m, indent=2))
+        print(f"Saved {BIAS_PATH}")
+        for p, v in m.items():
+            print(f"  {p:4s} logit(actual) = {v['a']:+.2f} + {v['b']:.2f} x logit(source)   (n={v['n']})")
     if a.cv or a.fit:
         d = build_features(load_archive(a.archive))
         print(f"{d['slate'].nunique()} slates, {len(d)} player rows")
@@ -231,6 +296,10 @@ def main():
         if "mae_source" in rep:
             print(f"Published source (own_source, e.g. OWS): {rep['mae_source'].mean():.2f} — use the fitted model "
                   f"only if it also beats this.")
+        if "mae_source_corrected" in rep:
+            print(f"Source with 2-parameter position correction: {rep['mae_source_corrected'].mean():.2f} "
+                  f"(review 2a: worth it after ~6-8 slates; switch on with --fit-bias if it beats the raw source "
+                  f"on the most recent slates).")
         print("Switch over once the model wins the 3 most recent slates.")
     if a.fit:
         with open(a.model, "w") as f:

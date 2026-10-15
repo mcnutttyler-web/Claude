@@ -14,14 +14,26 @@ cash:
 
 gpp:
   single_entry:
-    label: "Single-entry / small field (<=1k)"
-    lambda_log_own: 0.5
-    cum_own_band: [1.00, 1.60]
+    label: "Single-entry / 3-max / small field (<=1k)"
+    # review 3e (Oct 15): in small fields leverage is a small lever (keep it low); duplication, salary left over and
+    # product-of-ownership caps are noise -> no ownership band, no product cap, loose salary floor.
+    lambda_log_own: 0.3
+    cum_own_band: null
     product_own: null
     rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, bring_back_min: 0,
             max_per_team_excl: {max: 4, exclude_positions: [DST]}, soft_penalty_vs_opp_dst: 2.0}
     uniqueness_U: null
-    min_salary: 49000
+    min_salary: 48000
+  simple_default:
+    label: "Simple default (shadow): QB + 1 stack, no ownership logic"
+    # review 3a/3e shadow portfolio: build it next to the sim-ROI portfolio; the scorecard compares finishes.
+    lambda_log_own: 0.0
+    cum_own_band: null
+    product_own: null
+    rules: {block_qb_vs_opp_dst: true, qb_stack_min: 1, bring_back_min: 0,
+            max_per_team_excl: {max: 4, exclude_positions: [DST]}}
+    uniqueness_U: null
+    min_salary: 48000
   mid_20max:
     label: "20-max, 5k-50k field"
     lambda_log_own: 1.0

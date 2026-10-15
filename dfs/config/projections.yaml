@@ -28,6 +28,8 @@ nfl:
       window_weeks: {value: 8, calibrated: false, source: "build prompt §3.7"}
       floor:        {value: 0.1, calibrated: false, source: "build prompt §3.7"}
       max_step:     {value: 0.1, calibrated: false, source: "build prompt §3.7"}
+    late_news_model_weight: {value: 0.25, calibrated: false,
+                             source: "review 1c: when a team has a key player ruled Out (QB1, >=10% target share or >=25% carry share, playing recently), its players blend 25/75 model/consensus - the consensus is updated for the news, the model's share history isn't"}
     disagreement:
       mae_mult:     {value: 0.75, calibrated: false, source: "|model - market| > 1.5 x position MAE x 0.5"}
       rank_gap:     {value: 15, calibrated: false, source: "build prompt §1"}
@@ -159,10 +161,10 @@ nfl:
              source: "playbook §3.2: plays x (1+0.004(ITT-avg)), pass rate = base + PROE - 0.006 x fav margin, OffTDs = 0.105 x ITT, injuries 60/40 targets & 70/30 carries, dropbacks -2-4% when QB1/WR1 out, TDs 80% from RZ share. league_plays null = measured from nflverse"}
     top_end_shrink: {value: {QB: [22, 28, 0.88], RB: [20, 26, 0.92], TE: [13, 17, 0.93]}, calibrated: false,
                      source: "playbook §3.3 (unreviewed nflverse backtest): actual/engine 0.88 QB 28+, 0.92 RB 26+, 0.93 TE 17+; ramped in linearly from [start] to [full] so there is no step"}
-    calibration: {value: {file: config/calibration.json, positions: [QB, RB, WR, TE]}, calibrated: true,
-                  source: "per-position actual ~ a + b*proj fit on the 2019-2026 walk-forward backtest of THIS model (pool chosen pre-game by projection), shrunk toward identity, applied only inside the fitted projection range. Walk-forward: bias QB -0.62->-0.31, RB +0.61->+0.05, WR -0.75->-0.13, TE -0.57->-0.15; RMSE better at every position (MAE slightly worse for WR/TE because MAE rewards the median). Applied AFTER the 50/50 model+consensus blend (user spec). Refit: python scripts/recalibrate.py data/backtest.csv --out config/calibration.json"}
-    sanity_max_over: {value: 0.10, calibrated: false,
-                      source: "playbook §3.4: if a team's blended points run >10% above the Vegas-anchored model, scale the team down"}
+    calibration: {value: {file: config/calibration.json, positions: [QB, RB, WR, TE], apply_to: model}, calibrated: true,
+                  source: "per-position actual ~ a + b*proj fit on the 2019-2026 walk-forward backtest of THIS model (pool chosen pre-game by projection), shrunk toward identity, applied only inside the fitted projection range. Walk-forward: bias QB -0.62->-0.31, RB +0.61->+0.05, WR -0.75->-0.13, TE -0.57->-0.15; RMSE better at every position (MAE slightly worse for WR/TE because MAE rewards the median). apply_to: model = calibrate the own model, THEN blend (review 1a, Oct 15: the fit is on model errors; the consensus half is ~unbiased, so calibrating the blend over-corrected by ~half). apply_to: blend restores the old order. Refit: python scripts/recalibrate.py data/backtest.csv --out config/calibration.json"}
+    sanity_max_over: {value: null, calibrated: false,
+                      source: "OFF (review 1f, Oct 15): one-way down-scaling biased high-total teams (the ones you stack) and the blend already contains Vegas-anchored consensus. Set e.g. 0.10 to re-enable (scales a team down when blended points run >10% above the model)."}
 
   kicker:                                   # P4
     skill_shrink_k_attempts: {value: 60, calibrated: false, source: "build prompt §3.10"}

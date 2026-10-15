@@ -67,18 +67,34 @@ def _table():
     bd = lambda m, c: json.dumps({**({"model": {"value": m}} if m is not None else {}),
                                   **({"consensus": {"value": c}} if c is not None else {})})
     return pd.DataFrame({"position": ["QB", "WR", "WR", "DST"], "mean": [21.0, 11.0, 9.0, 7.0],
+                         "team": ["BBB", "AAA", "CCC", "DDD"],
                          "source_breakdown": [bd(20, 22), bd(10, 12), bd(None, 9), bd(6, 8)]})
 
 
-def test_final_calibration_after_blend(tmp_path):
-    save_calibration({"WR": PosCal(1.0, 0.9, 500), "QB": PosCal(0.0, 1.0, 500)}, tmp_path / "cal.json")
+def test_calibrate_model_then_blend(tmp_path):
+    """Review 1a: the calibration (fit on model errors) is applied to the model component, then blended."""
+    save_calibration({"WR": PosCal(3.0, 0.9, 500), "QB": PosCal(0.0, 1.0, 500)}, tmp_path / "cal.json")
     P = Params(overrides={"bottomup.calibration": {"file": str(tmp_path / "cal.json"), "positions": ["QB", "WR"]}})
     t, cal, notes = final_calibration(_table(), P)
-    assert t["proj_final"].tolist() == pytest.approx([21.0, 11.0, 9.0, 7.0])
-    assert t.loc[1, "proj_cal"] == pytest.approx(1 + 0.9 * 11)
-    assert t.loc[2, "proj_source"] == "consensus_fallback" and t.loc[2, "proj_cal"] == pytest.approx(1 + 0.9 * 9)
-    assert t.loc[3, "proj_cal"] == pytest.approx(7.0)                  # DST: no calibration entry
-    assert (t["mean"] == t["proj_cal"]).all() and "consensus" in notes[0]
+    assert t.loc[1, "proj_model_cal"] == pytest.approx(3 + 0.9 * 10)            # 12.0
+    assert t.loc[1, "proj_cal"] == pytest.approx(0.5 * 12.0 + 0.5 * 12.0)       # model_cal blended with consensus
+    assert t.loc[2, "proj_source"] == "consensus_fallback" and t.loc[2, "proj_cal"] == pytest.approx(9.0)
+    assert t.loc[0, "proj_cal"] == pytest.approx(21.0) and t.loc[3, "proj_cal"] == pytest.approx(7.0)
+    assert (t["mean"] == t["proj_cal"]).all() and any("before blending" in n for n in notes)
+    # old order still available
+    P2 = Params(overrides={"bottomup.calibration": {"file": str(tmp_path / "cal.json"), "positions": ["WR"],
+                                                     "apply_to": "blend"}})
+    t2, _, _ = final_calibration(_table(), P2)
+    assert t2.loc[1, "proj_cal"] == pytest.approx(3 + 0.9 * 11.0)
+
+
+def test_late_news_team_leans_on_consensus(tmp_path):
+    P = Params(overrides={"bottomup.calibration": {"file": str(tmp_path / "none.json")}})
+    t, _, notes = final_calibration(_table(), P, news_teams={"AAA": ["Out Guy"]})
+    w = P.get("blend.late_news_model_weight")
+    assert t.loc[1, "proj_cal"] == pytest.approx(w * 10 + (1 - w) * 12)        # AAA player
+    assert t.loc[0, "proj_cal"] == pytest.approx(0.5 * 20 + 0.5 * 22)          # other team unchanged
+    assert t.loc[1, "proj_source"] == "blend_late_news" and any("late news" in n for n in notes)
 
 
 def test_missing_calibration_file_warns(tmp_path):
@@ -170,7 +186,9 @@ def test_archive_week_layout_and_prev_salary(tmp_path):
                    standings={"contest-standings-99.csv": b"Player,%Drafted\nA,10%\n"}, log=lambda m: None)
     assert dest == root / "2026" / "w06"
     assert {p.name for p in dest.iterdir()} == {"dk_salaries.csv", "dff.csv", "my_projections.csv",
-                                                "standings_contest-standings-99.csv"}
+                                                "standings_contest-standings-99.csv", "snapshots"}
+    snaps = list((dest / "snapshots").iterdir())
+    assert len(snaps) == 1 and {p.name for p in snaps[0].iterdir()} == {"dff.csv", "my_projections.csv"}
     mp = pd.read_csv(dest / "my_projections.csv")
     assert mp["prev_salary"].tolist()[:2] == [5000, 6000] and np.isnan(mp["prev_salary"].iloc[2])
 
@@ -246,3 +264,28 @@ def test_source_name_detection():
     assert source_name("ows-dk-Week-6-Main-projections.csv", b"Player,Position") == "ows"
     assert source_name("x.csv", b"Player,Team Ownership,Player ID") == "ows"
     assert source_name("My Picks.csv", b"name", {"my_picks"}) == "my_picks2"
+
+
+
+def test_bias_correction_learns_chalkier_chalk(tmp_path):
+    """Review 2a: if real ownership is a steeper function of the source (chalk chalkier), fit_bias finds b > 1 and
+    the corrected numbers beat the raw source out of sample."""
+    root = tmp_path / "archive"
+    rng = np.random.default_rng(11)
+    for w in range(1, 8):
+        pool = _pool(w)
+        d = OF.build_features(pool.assign(slate="x"))
+        src = OF.normalize(d.assign(_t=np.exp(0.8 * (d["value"] - d["value"].mean()))), "_t")
+        z = np.log(np.clip(src, 1e-4, None))
+        true = OF.normalize(d.assign(_t=np.exp(1.4 * z)), "_t")                 # chalkier than the source
+        pool["own_source"] = 100 * src.to_numpy()
+        dest = archive(2026, w, root, pool=pool.to_csv(index=False).encode(), log=lambda m: None)
+        _standings_csv(dest / "standings_main.csv", dict(zip(pool["name"], true * rng.uniform(0.95, 1.05, len(true)))))
+    d = OF.build_features(OF.load_archive(str(root)))
+    m = OF.fit_bias(d)
+    assert all(v["b"] > 1.05 for k, v in m.items() if k in ("RB", "WR"))
+    rep = OF.cross_validate(d)
+    assert rep["mae_source_corrected"].mean() < rep["mae_source"].mean()
+    pred = OF.predict_bias(m, d[d["slate"] == d["slate"].iloc[0]])
+    tot = pred.groupby(d.loc[pred.index, "pos"]).sum()
+    assert tot["QB"] == pytest.approx(1.0, abs=1e-6) and tot[["RB", "WR", "TE"]].sum() == pytest.approx(7.0, abs=1e-6)

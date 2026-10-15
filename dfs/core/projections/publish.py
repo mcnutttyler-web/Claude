@@ -42,10 +42,10 @@ SCHEMA_STATS = ["dropbacks", "pass_att", "completions", "pass_yds", "pass_td", "
 SCHEMA_DST = ["sacks", "def_int", "fum_rec", "def_td", "ret_td", "safety", "blocked_kick"] + \
     [f"p_pa_tier{k}" for k in range(7)]
 SCHEMA_K = ["fga_0_39", "fga_40_49", "fga_50_plus", "fgm", "xp"]
-SCHEMA_POINTS = ["mean", "median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp",
+SCHEMA_POINTS = ["mean", "median", "p10", "p25", "p75", "p85", "p90", "std", "p_value_cash", "p_value_gpp",
                  "p_300_pass", "p_100_rush", "p_100_rec"]
 SCHEMA_OWN = ["own_gpp", "own_cash", "own_cpt", "own_flex", "own_heuristic", "own_source"]
-SCHEMA_CAL = ["proj_model", "proj_dff", "proj_final", "proj_cal", "proj_source"]
+SCHEMA_CAL = ["proj_model", "proj_model_cal", "proj_dff", "proj_final", "proj_cal", "proj_source"]
 SCHEMA_META = ["source_breakdown", "n_sources", "source_sd", "confidence", "disagreement_flag", "override_flag",
                "p_play", "team_total", "game_total", "spread", "updated_at", "input_hash", "seed"]
 
@@ -196,9 +196,9 @@ def build_projections(
     t = slate.copy()
     t = t.join(b.set_index("dk_index"), how="left")
     # 50/50 model + consensus with fallback, then per-position calibration (core/projections/recalibrate.py)
-    t, cal, cw = final_calibration(t, params)
+    t, cal, cw = final_calibration(t, params, model.news_teams if model is not None else None)
     warnings.extend(cw)
-    if model is not None and len(model.rows):
+    if model is not None and len(model.rows) and params.get("bottomup.sanity_max_over") is not None:
         ref = model.rows
         if cal is not None:
             ref = calibrate_points(model.rows, slate, cal)
@@ -256,7 +256,7 @@ def build_projections(
     if simulate_outcomes and t["mean"].notna().any():
         sim = simulate(t.assign(dk_index=t.index), params, sport.scoring_cfg, n_sims, seed, dst_detail)
         s = sim.summary.set_index("dk_index")
-        for c in ("median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp"):
+        for c in ("median", "p10", "p25", "p75", "p85", "p90", "std", "p_value_cash", "p_value_gpp"):
             if c in s:
                 t.loc[s.index, c] = s[c]
         median_ov = ov[ov["field"] == "median"] if overrides is not None else pd.DataFrame()
@@ -267,7 +267,7 @@ def build_projections(
         t["p10"] = t.get("floor", np.nan)
         t["p90"] = t.get("ceiling", np.nan)
     out_rows = t["p_play"].fillna(1.0) <= 0
-    for c in ("mean", "median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp"):
+    for c in ("mean", "median", "p10", "p25", "p75", "p85", "p90", "std", "p_value_cash", "p_value_gpp"):
         if c in t:
             t.loc[out_rows, c] = 0.0
     for stat, col in (("pass_yds", "p_300_pass"), ("rush_yds", "p_100_rush"), ("rec_yds", "p_100_rec")):
@@ -447,44 +447,74 @@ def _component(breakdown: str, comp: str) -> float:
         return np.nan
 
 
-def final_calibration(t: pd.DataFrame, params: Params):
-    """proj_final = blend_with_fallback(model, consensus) (rookies -> 100% consensus), then apply_calibration per
-    position -> proj_cal, which becomes `mean` (and the optimizer's projection). Rows with a market (props)
-    component keep the 3-way blend as proj_final. Missing calibration file -> warning, proj_cal = proj_final."""
-    from core.projections.recalibrate import apply_calibration, blend_with_fallback, load_calibration
+def final_calibration(t: pd.DataFrame, params: Params, news_teams: dict | None = None):
+    """Model -> calibrate -> blend (review 1a: the calibration was fit on the own model's errors, so it is applied to
+    the model component, not to a blend whose consensus half is already ~unbiased).
+
+      proj_model      raw own model            proj_model_cal  per-position calibration (config/calibration.json)
+      proj_dff        consensus (all uploaded sources, equal weight)
+      proj_final      blend_with_fallback(proj_model_cal, consensus); rookies -> 100% consensus
+                      teams with a key player ruled Out (news_teams) lean on consensus: late_news_model_weight
+      proj_cal        what the optimizer uses (= proj_final; with apply_to: blend the calibration runs after the blend)
+    Rows with a market (props) component keep the 3-way blend."""
+    from core.projections.recalibrate import apply_calibration, load_calibration
     if "source_breakdown" not in t:
         return t, None, []
     t = t.copy()
+    notes = []
     has = t["mean"].notna()
     bd = t["source_breakdown"].where(has, None)
     d = pd.DataFrame({"proj_model": [_component(x, "model") if x else np.nan for x in bd],
                       "proj_dff": [_component(x, "consensus") if x else np.nan for x in bd],
                       "market": [_component(x, "market") if x else np.nan for x in bd],
-                      "pos": t["position"].to_numpy()}, index=t.index)
+                      "pos": t["position"].to_numpy(),
+                      "team": t["team"].to_numpy() if "team" in t else ""}, index=t.index)
+    ccfg = params.get("bottomup.calibration") or {}
+    apply_to = ccfg.get("apply_to", "model")
+    path = calibration_path(params)
+    cal = None
+    if path.exists():
+        cal = load_calibration(str(path))
+        pos_on = set(ccfg.get("positions", list(cal)))
+        cal = {p: c for p, c in cal.items() if p in pos_on}
+    else:
+        notes.append(f"calibration file {path.name} not found — projections are NOT calibrated "
+                     f"(run: python scripts/recalibrate.py data/backtest.csv --out config/calibration.json)")
+    d["proj_model_cal"] = d["proj_model"]
+    if cal and apply_to == "model":
+        d["proj_model_cal"] = apply_calibration(d, cal, proj_col="proj_model", pos_col="pos",
+                                                out_col="_c")["_c"]
     w = params.get("blend.component_weights.without_props")
     w_model = float(w.get("model", 0.5)) / max(float(w.get("model", 0.5)) + float(w.get("consensus", 0.5)), 1e-9)
-    d = blend_with_fallback(d, "proj_model", "proj_dff", w_model)
+    w_late = float(params.get("blend.late_news_model_weight"))
+    news = set((news_teams or {}).keys())
+    wv = np.where(d["team"].isin(news), w_late, w_model)
+    m, c = d["proj_model_cal"], d["proj_dff"]
+    d["proj_final"] = np.where(m.notna() & c.notna(), wv * m + (1 - wv) * c, np.where(m.notna(), m, c))
+    d["proj_source"] = np.select([m.notna() & c.notna(), m.notna(), c.notna()],
+                                 ["blend", "model_only", "consensus_fallback"], default="none")
+    late = d["team"].isin(news) & m.notna() & c.notna()
+    d.loc[late, "proj_source"] = "blend_late_news"
     mkt = d["market"].notna()
     d.loc[mkt | d["proj_final"].isna(), "proj_final"] = t.loc[mkt | d["proj_final"].isna(), "mean"]
     d.loc[mkt, "proj_source"] = "blend_with_market"
-    t["proj_model"], t["proj_dff"], t["proj_final"], t["proj_source"] = d["proj_model"], d["proj_dff"], \
-        d["proj_final"], d["proj_source"].where(has, "none")
-    path = calibration_path(params)
-    if not path.exists():
-        t["proj_cal"] = t["proj_final"]
-        t.loc[has, "mean"] = t.loc[has, "proj_final"]
-        return t, None, [f"calibration file {path.name} not found — projections are NOT calibrated "
-                         f"(run: python scripts/recalibrate.py data/backtest.csv --out config/calibration.json)"]
-    cal = load_calibration(str(path))
-    pos_on = set((params.get("bottomup.calibration") or {}).get("positions", list(cal)))
-    cal = {p: c for p, c in cal.items() if p in pos_on}
-    d = apply_calibration(d.assign(proj_final=t["proj_final"]), cal, proj_col="proj_final", pos_col="pos",
-                          out_col="proj_cal")
-    t["proj_cal"] = d["proj_cal"]
+    d["proj_cal"] = d["proj_final"]
+    if cal and apply_to == "blend":
+        d["proj_cal"] = apply_calibration(d, cal, proj_col="proj_final", pos_col="pos", out_col="_c")["_c"]
+    for col in ("proj_model", "proj_model_cal", "proj_dff", "proj_final", "proj_cal"):
+        t[col] = d[col]
+    t["proj_source"] = d["proj_source"].where(has, "none")
     t.loc[has, "mean"] = t.loc[has, "proj_cal"]
+    if cal:
+        notes.append(f"calibrated per position ({', '.join(sorted(cal))}) on the "
+                     f"{'own model before blending' if apply_to == 'model' else 'blend'}")
     n_fb = int((t["proj_source"] == "consensus_fallback").sum())
-    return t, cal, [f"calibrated per position ({', '.join(sorted(cal))}) from {path.name}"
-                    + (f"; {n_fb} players without a model projection use 100% consensus" if n_fb else "")]
+    if n_fb:
+        notes.append(f"{n_fb} players without a model projection use 100% consensus")
+    if late.any():
+        notes.append("late news — leaning on consensus ({:.0%} model) for: ".format(w_late) + "; ".join(
+            f"{k} (out: {', '.join(v)})" for k, v in sorted((news_teams or {}).items())))
+    return t, cal, notes
 
 
 def calibrate_points(mrows: pd.DataFrame, slate: pd.DataFrame, cal: dict) -> pd.DataFrame:
@@ -498,16 +528,38 @@ def calibrate_points(mrows: pd.DataFrame, slate: pd.DataFrame, cal: dict) -> pd.
 
 
 def archive_pool(table: pd.DataFrame) -> pd.DataFrame:
-    """my_projections.csv for scripts/archive_week.py + ownership_fit.py: name, pos, salary, proj, team, team_total,
-    own_heuristic (v1 %, 0-100)."""
+    """my_projections.csv — the weekly pool and the scorecard's record of what was projected before lock.
+
+    name, pos, team, salary, proj (final, what the optimizer used), proj_model / proj_model_cal,
+    proj_consensus (average of sources) / proj_<source> (each uploaded source, e.g. proj_dff, proj_ows), sim_median, p10/p85/p90 (outcome percentiles for coverage checks),
+    team_total, status, p_play, own_gpp / own_cash / own_heuristic / own_source (in %)."""
     t = table[table["mean"].notna()]
     proj = t["proj_cal"] if "proj_cal" in t else t["mean"]
-    out = pd.DataFrame({"name": t["name"], "pos": t["position"], "salary": t["salary"], "proj": proj.round(3),
-                        "team_total": t["team_total"]})
-    if "own_heuristic" in t:
-        out["own_heuristic"] = (100 * t["own_heuristic"]).round(2)
-    if "own_source" in t and t["own_source"].notna().any():
-        out["own_source"] = (100 * t["own_source"]).round(2)        # published ownership (e.g. OWS), in %
+    out = pd.DataFrame({"name": t["name"], "pos": t["position"], "team": t["team"], "salary": t["salary"],
+                        "proj": proj.round(3), "team_total": t["team_total"]})
+    for c, name in (("proj_model", "proj_model"), ("proj_model_cal", "proj_model_cal"), ("proj_dff", "proj_consensus")):
+        if c in t and t[c].notna().any():
+            out[name] = t[c].round(3)          # proj_consensus = average of all uploaded sources
+    if "source_breakdown" in t:                       # each consensus source's own number
+        per = {}
+        for idx, js in t["source_breakdown"].items():
+            try:
+                srcs = (json.loads(js).get("consensus") or {}).get("sources", {}) if isinstance(js, str) else {}
+            except ValueError:
+                srcs = {}
+            for k, v in srcs.items():
+                per.setdefault(k, {})[idx] = v
+        for k, v in sorted(per.items()):
+            out[f"proj_{k}"] = pd.Series(v).reindex(t.index).round(3)
+    for c, src in (("sim_median", "median"), ("p10", "p10"), ("p85", "p85"), ("p90", "p90")):
+        if src in t and t[src].notna().any():
+            out[c] = t[src].round(3)
+    for c in ("status", "p_play"):
+        if c in t:
+            out[c] = t[c]
+    for c in ("own_gpp", "own_cash", "own_heuristic", "own_source"):
+        if c in t and t[c].notna().any():
+            out[c] = (100 * t[c]).round(2)                               # percent
     return out
 
 

@@ -261,7 +261,7 @@ def test_publish_sanity_scales_hot_consensus(nfl_dir, tmp_path):
     hot.to_csv(src, index=False)
     from core.projections.sources import SourceSpec
     run = build_projections(sal, [SourceSpec("hot", str(src))], SPORT, odds=odds, nflverse_dir=nfl_dir,
-                            simulate_outcomes=False)
+                            simulate_outcomes=False, params=Params(overrides={"bottomup.sanity_max_over": 0.10}))
     assert any(w.startswith("AAA: blended points") for w in run.warnings)
     a = run.table[run.table["team"] == "AAA"]
     m = base[base["team"] == "AAA"]
@@ -305,7 +305,7 @@ def test_rookie_without_history_uses_consensus_end_to_end(nfl_dir, tmp_path):
     assert t.at["Aaa Rookie", "proj_source"] == "consensus_fallback"
     assert t.at["Aaa Rookie", "proj_final"] == pytest.approx(11.0)
     cal = load_calibration(str(calibration_path(PARAMS)))["WR"]
-    assert t.at["Aaa Rookie", "mean"] == pytest.approx(float(cal.correct(np.array([11.0]))[0]), abs=1e-6)
+    assert t.at["Aaa Rookie", "mean"] == pytest.approx(11.0)    # consensus-only rows are not model-calibrated
     assert t.at["Aaa WR1", "proj_source"] == "blend"
     csv = lineup_csv(run.table).set_index("name")
     assert csv.at["Aaa Rookie", "median"] == pytest.approx(t.at["Aaa Rookie", "proj_cal"], abs=1e-3)
