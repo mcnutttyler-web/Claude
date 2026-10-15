@@ -59,7 +59,7 @@ def fetch_extra(season: int, kinds=("participation", "ftn", "stats"), dest: Path
         tag, stem = EXTRA[k]
         url = f"https://github.com/nflverse/nflverse-data/releases/download/{tag}/{stem}_{season}.parquet"
         try:
-            with urllib.request.urlopen(url, timeout=120) as r:
+            with nflverse.urlopen(url, timeout=120) as r:
                 p.write_bytes(r.read())
             ok[k] = True
             log(f"downloaded {p.name}")

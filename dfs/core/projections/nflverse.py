@@ -30,6 +30,18 @@ RZ_TARGET_YDS = 20          # red zone: yardline_100 <= 20
 GL_CARRY_YDS = 10           # goal-line carries: yardline_100 <= 10
 
 
+def urlopen(url: str, timeout: float = 120):
+    """urllib with the certifi CA bundle. Python from python.org on macOS ships without system certificates
+    (CERTIFICATE_VERIFY_FAILED); certifi is installed with streamlit (via requests), so use it when present."""
+    import ssl
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ctx = ssl.create_default_context()
+    return urllib.request.urlopen(url, timeout=timeout, context=ctx)
+
+
 def path_for(kind: str, season: int, dest: str | Path = DEFAULT_DIR) -> Path:
     return Path(dest) / f"{FILES[kind][1]}_{season}.parquet"
 
@@ -50,7 +62,7 @@ def fetch(seasons: list[int], kinds=("pbp", "rosters", "snaps"), dest: str | Pat
                 url = URL.format(tag=tag, stem=stem, season=season)
                 tmp = p.with_suffix(".part")
                 try:
-                    with urllib.request.urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
+                    with urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
                         f.write(r.read())
                     tmp.replace(p)
                     log(f"downloaded {p.name}")
@@ -73,7 +85,7 @@ def fetch_games(dest: str | Path = DEFAULT_DIR, max_age_hours: float = 6.0, log=
         return p
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with urllib.request.urlopen(GAMES_URL, timeout=60) as r:
+        with urlopen(GAMES_URL, timeout=60) as r:
             p.write_bytes(r.read())
         log(f"downloaded {p.name}")
     except Exception as e:

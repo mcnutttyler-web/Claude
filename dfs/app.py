@@ -103,8 +103,18 @@ def own_projections_panel():
         for w in run.warnings:
             st.warning(w)
         pm = run.log.get("public_model")
-        if pm:
+        if pm and pm.get("players"):
             st.success(f"Own model: {pm['players']} players on {pm['teams']} teams.")
+        else:
+            ssl_err = any("CERTIFICATE_VERIFY_FAILED" in w for w in run.warnings)
+            st.error("Your own model did NOT run — these projections are the consensus file(s) only. "
+                     + ("The NFL data download was blocked by a missing certificate list on this Mac. Fix: run "
+                        "`git pull` and restart the app (the update uses certifi). If it still fails, open "
+                        "Finder → Applications → Python 3.x and double-click **Install Certificates.command**."
+                        if ssl_err else "Check the warnings above (nflverse data or Vegas lines missing)."))
+        if any("team_total / game_total / spread left empty" in w for w in run.warnings):
+            st.error("No Vegas lines: the model needs spreads/totals. Upload the DFF cheat sheet (it has them), "
+                     "an odds.csv, or let the nflverse schedule download work.")
         with st.expander("Team volume (plays, pass rate, attempts, TDs per team)"):
             st.dataframe(run.team_check, hide_index=True)
         cal_missing = any("NOT calibrated" in w for w in run.warnings)
