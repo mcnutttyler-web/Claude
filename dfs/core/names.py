@@ -92,6 +92,14 @@ def match_players(
                 if scores[best] >= threshold:
                     idx, how = int(best), f"{label}:{scores[best]:.2f}"
                     break
+        if idx < 0 and isinstance(r["_n"], str) and r["_n"]:
+            # last resort: same team + position + last name, and exactly one such DK player
+            # ("Cameron Ward" vs "Cam Ward", "Kenneth Walker" vs "Kenneth Walker III")
+            last = r["_n"].split()[-1]
+            pool = sal[(sal["_t"] == r["_t"]) & (sal["position"].astype(str) == str(r["_p"]))
+                       & (sal["_n"].str.split().str[-1] == last)]
+            if len(pool) == 1:
+                idx, how = int(pool.index[0]), "last_name_team_pos"
         if idx in used and how != "override":
             how = f"duplicate({how})"
             idx = -1

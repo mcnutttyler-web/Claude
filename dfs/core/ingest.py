@@ -20,11 +20,12 @@ GAME_INFO_RE = re.compile(
 
 # Canonical projection columns -> accepted header synonyms (lower-case, stripped).
 PROJECTION_SYNONYMS: dict[str, list[str]] = {
-    "name": ["name", "player", "player_name", "playername", "full_name"],
-    "team": ["team", "teamabbrev", "tm", "team_abbrev"],
+    "name": ["name", "player", "player_name", "playername", "full_name", "full name"],
+    "team": ["team", "teamabbrev", "tm", "team_abbrev", "team abbrev"],
     "position": ["position", "pos"],
     "median": ["median", "proj", "projection", "fpts", "points", "dk_points", "dkpts", "mean", "projected_points",
-               "ppg_projection", "proj_pts", "projected_fpts", "dk_projection", "fantasy_points"],
+               "ppg_projection", "proj_pts", "projected_fpts", "dk_projection", "fantasy_points",
+               "projected points"],
     "floor": ["floor", "p10", "p25", "low"],
     "ceiling": ["ceiling", "ceil", "p85", "p90", "high"],
     "std_dev": ["std_dev", "stddev", "std", "sd", "stdev"],

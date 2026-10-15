@@ -39,7 +39,7 @@ STAT_SYNONYMS: dict[str, list[str]] = {
     "targets": ["targets", "tgt", "rec_tgt"],
     "rec": ["rec", "receptions"],
     "rec_yds": ["rec_yds", "rec_yd", "receiving_yards", "rec_yards"],
-    "rec_td": ["rec_td", "rec_tds", "receiving_tds"],
+    "rec_td": ["rec_td", "rec_tds", "receiving_tds", "receiving_td"],
     "fumble_lost": ["fumble_lost", "fum_lost", "fumbles_lost"],
     "two_pt": ["two_pt", "2pt", "two_pt_conversions", "pass_2pt"],
     "sacks": ["sacks", "def_sack", "dst_sacks"],
@@ -60,6 +60,15 @@ class SourceSpec:
     kind: str = "points"
     component: str = "consensus"
     mapping: dict = field(default_factory=dict)
+
+
+def detect_source(filename: str, raw: bytes) -> tuple[str, str]:
+    """(base name, kind) for an uploaded projections file. Weekly position rankings in standard scoring (columns
+    'Projected Points' + 'Opponent Vs Position', one file per position) -> ('rankings', 'standard')."""
+    head = raw[:600].decode("utf-8", "ignore").lower()
+    if "projected points" in head and "opponent vs position" in head:
+        return "rankings", "standard"
+    return source_name(filename, raw), "points"
 
 
 def source_name(filename: str, raw: bytes, taken: set | None = None) -> str:
@@ -93,7 +102,7 @@ def load_source_specs(path: str | Path) -> list[SourceSpec]:
 
 
 def stat_mapping(columns: list[str]) -> dict[str, str]:
-    lower = {c.strip().lower(): c for c in columns}
+    lower = {c.strip().lower().replace(" ", "_"): c for c in columns}
     out = {}
     for canon, syns in STAT_SYNONYMS.items():
         for s in syns:
@@ -117,7 +126,26 @@ def read_source(spec: SourceSpec, slate: pd.DataFrame, sport: SportConfig, param
         "team": raw[m["team"]].astype(str).str.strip().str.upper(),
         "position": raw[m["position"]].astype(str).str.strip().str.upper(),
     })
-    if spec.kind == "stats":
+    if spec.kind == "standard":
+        # rankings exported in STANDARD (non-PPR) scoring with projected stat lines: DK points = expected_score of
+        # the stat line (receptions, yards, TDs, 300/100/100 bonuses priced by probability) + the source's own
+        # standard points minus standard points recomputed from the listed stats (carries its INT/fumble estimates).
+        # Rows without stat lines (e.g. DST) are dropped — standard DST scoring isn't DK's.
+        sm = stat_mapping(list(raw.columns))
+        if not sm or "median" not in m:
+            raise ValueError(f"source {spec.name}: kind=standard needs stat columns and a projected-points column")
+        for canon, col in sm.items():
+            df[canon] = pd.to_numeric(raw[col], errors="coerce")
+        has = df[list(sm)].notna().any(axis=1) & df["position"].isin(["QB", "RB", "WR", "TE"])
+        df = df[has].copy()
+        st = df[list(sm)].fillna(0.0)
+        std_pts = sum(st[c] * w for c, w in (("pass_yds", 0.04), ("pass_td", 4), ("rush_yds", 0.1), ("rush_td", 6),
+                                            ("rec_yds", 0.1), ("rec_td", 6)) if c in st)
+        src_pts = pd.to_numeric(raw.loc[df.index, m["median"]], errors="coerce")
+        disp = {"cv": params.get("stat_conversion.bonus_cv"), "pa_sigma": params.get("stat_conversion.pa_sigma")}
+        dk = pd.Series([sport.expected_score({k: r[k] for k in sm}, disp) for _, r in st.iterrows()], index=df.index)
+        df["points"] = dk + (src_pts - std_pts).clip(-3, 0.5).fillna(0.0)
+    elif spec.kind == "stats":
         sm = stat_mapping(list(raw.columns))
         sm.update({k: v for k, v in (spec.mapping or {}).items() if k in STAT_SYNONYMS})
         if not sm:

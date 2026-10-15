@@ -289,3 +289,38 @@ def test_bias_correction_learns_chalkier_chalk(tmp_path):
     pred = OF.predict_bias(m, d[d["slate"] == d["slate"].iloc[0]])
     tot = pred.groupby(d.loc[pred.index, "pos"]).sum()
     assert tot["QB"] == pytest.approx(1.0, abs=1e-6) and tot[["RB", "WR", "TE"]].sum() == pytest.approx(7.0, abs=1e-6)
+
+
+def test_standard_rankings_source_converted_to_dk(tmp_path):
+    """Weekly rankings in STANDARD scoring (one file per position): stat lines -> DK points (+1/rec, bonuses),
+    keeping the source's INT/fumble deduction; DST rows (non-DK scoring) dropped."""
+    from core.projections.params import Params
+    from core.projections.sources import SourceSpec, detect_source, read_source
+    from sports.base import load_sport
+    sport = load_sport("nfl")
+    wr = ('Rank,"Full Name","Team Abbrev",Position,Week,Opponent,"Projected Points","Opponent Vs Position",'
+          '"Opponent Vs Position Rank","Implied Vegas Points","Snap Share","Last Week Points",Targets,Receptions,'
+          '"Receiving Yards","Receiving TD"\n1,"Ace Wideout",AAA,WR,6,BBB,12.0,1,1,24,-,-,10,8,90,0.5\n')
+    qb = ('Rank,"Full Name","Team Abbrev",Position,Week,Opponent,"Projected Points","Opponent Vs Position",'
+          '"Opponent Vs Position Rank","Implied Vegas Points","Snap Share","Last Week Points","Pass Attempts",'
+          '"Pass Yards","Pass TD","Rush Attempts","Rush Yards","Rush TD"\n'
+          '1,"Cameron Passer",AAA,QB,6,BBB,19.4,1,1,24,-,-,35,250,2,3,20,0\n')
+    dst = ('Rank,"Full Name","Team Abbrev",Week,Opponent,"Projected Points","Opponent Vs Position",'
+           '"Opponent Vs Position Rank","Implied Vegas Points","Last Week Points"\n1,Hawks,AAA,6,BBB,20.6,,,24,-\n')
+    assert detect_source("WR-weekly-standard-rankings_1.csv", wr.encode()) == ("rankings", "standard")
+    frames = [pd.read_csv(__import__("io").StringIO(x)) for x in (wr, qb, dst)]
+    p = tmp_path / "rankings.csv"
+    pd.concat(frames, ignore_index=True).to_csv(p, index=False)
+    slate = pd.DataFrame({"id": ["1", "2", "3"], "name": ["Ace Wideout", "Cam Passer", "Hawks"],
+                          "team": ["AAA"] * 3, "position": ["WR", "QB", "DST"]})
+    good, bad = read_source(SourceSpec("rankings", str(p), kind="standard"), slate, sport, Params())
+    pts = good.set_index("dk_index")["points"]
+    # WR: 8 rec + 9.0 yds + 3 TD-pts = 20.0 standard-with-PPR, plus a small 100-yd bonus probability
+    assert 20.0 < pts[0] < 21.5
+    # QB: 10 + 8 + 2 = 20.0 from stats; the source's 19.4 implies a -0.6 INT/fumble deduction -> carried over
+    P_ = Params()
+    disp = {"cv": P_.get("stat_conversion.bonus_cv"), "pa_sigma": P_.get("stat_conversion.pa_sigma")}
+    dk_stats = sport.expected_score({"pass_yds": 250, "pass_td": 2, "rush_att": 3, "rush_yds": 20, "rush_td": 0}, disp)
+    assert pts[1] == pytest.approx(dk_stats - 0.6, abs=1e-3)       # 300-yd bonus probability kept, -0.6 carried
+    assert 2 not in pts.index                                            # DST dropped
+    assert good.loc[good["dk_index"] == 1].shape[0] == 1                # "Cameron" matched "Cam" by last name

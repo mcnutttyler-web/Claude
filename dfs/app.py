@@ -55,13 +55,14 @@ def own_projections_panel():
     """Bottom-up public model (nflverse + Vegas), optionally blended 50/50 with a free consensus CSV."""
     import tempfile
     from core.projections.publish import build_projections, lineup_csv
-    from core.projections.sources import SourceSpec, source_name
+    from core.projections.sources import SourceSpec, detect_source, source_name
     st.caption("Vegas lines → team plays and pass rate → each player's target/carry share from nflverse "
                "play-by-play → stat lines → DK points. Optional: blend 50/50 with a free consensus CSV "
                "(e.g. DailyFantasyFuel), which also supplies spreads/totals and injury tags.")
     badge("Model constants")
     c1, c2, c3 = st.columns(3)
-    cons = c1.file_uploader("Consensus projections (optional; DFF, OWS, ... — several are averaged)", type=["csv"],
+    cons = c1.file_uploader("Consensus projections (optional; DFF, OWS, weekly rankings per position, ... — "
+                            "several are averaged)", type=["csv"],
                             key="own_cons", accept_multiple_files=True) or []
     odds = c2.file_uploader("odds.csv (optional: book, away, home, spread_home, total)", type=["csv"], key="own_odds")
     inj = c3.file_uploader("injuries.csv (optional: name, team, status[, practice])", type=["csv"], key="own_inj")
@@ -70,12 +71,21 @@ def own_projections_panel():
         with tempfile.TemporaryDirectory() as d, st.spinner("Building projections (about 30 s)…"):
             d = Path(d)
             (d / "sal.csv").write_bytes(ss["sal_raw"])
-            sources, srcs = [], {}
+            sources, srcs, kinds, groups = [], {}, {}, {}
             for f in cons:
-                name = source_name(f.name, f.getvalue(), set(srcs))
-                (d / f"{name}.csv").write_bytes(f.getvalue())
-                sources.append(SourceSpec(name=name, path=str(d / f"{name}.csv")))
-                srcs[name] = f.getvalue()
+                base, kind = detect_source(f.name, f.getvalue())
+                if kind == "standard":                     # one file per position -> one combined source
+                    groups.setdefault(base, []).append(f.getvalue())
+                    kinds[base] = kind
+                    continue
+                name = source_name(f.name, f.getvalue(), set(srcs) | set(groups))
+                srcs[name], kinds[name] = f.getvalue(), kind
+            for base, parts in groups.items():
+                frames = [pd.read_csv(io.BytesIO(b_)) for b_ in parts]
+                srcs[base] = pd.concat(frames, ignore_index=True).to_csv(index=False).encode()
+            for name, raw_ in srcs.items():
+                (d / f"{name}.csv").write_bytes(raw_)
+                sources.append(SourceSpec(name=name, path=str(d / f"{name}.csv"), kind=kinds.get(name, "points")))
             op = ip = None
             if odds is not None:
                 op = d / "odds.csv"
