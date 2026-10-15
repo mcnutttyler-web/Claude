@@ -42,6 +42,39 @@ def urlopen(url: str, timeout: float = 120):
     return urllib.request.urlopen(url, timeout=timeout, context=ctx)
 
 
+def download_to(url: str, path: str | Path, timeout: float = 180) -> None:
+    """Download url -> path. Tries Python with certifi, then Python's default certificates, then the system `curl`
+    (on macOS it uses the Keychain, so it works where Python's certificate setup doesn't, e.g. antivirus/VPN
+    proxies or python.org installs without Install Certificates.command)."""
+    import shutil
+    import ssl
+    import subprocess
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".part")
+    errors = []
+    attempts = [lambda: urlopen(url, timeout), lambda: urllib.request.urlopen(url, timeout=timeout,
+                                                                         context=ssl.create_default_context())]
+    for open_ in attempts:
+        try:
+            with open_() as r, open(tmp, "wb") as f:
+                f.write(r.read())
+            tmp.replace(path)
+            return
+        except Exception as e:  # try the next method
+            errors.append(str(e)[:120])
+            tmp.unlink(missing_ok=True)
+    curl = shutil.which("curl")
+    if curl:
+        r = subprocess.run([curl, "-fsSL", "--retry", "2", "--max-time", str(int(timeout)), "-o", str(tmp), url],
+                           capture_output=True, text=True)
+        if r.returncode == 0 and tmp.exists() and tmp.stat().st_size > 0:
+            tmp.replace(path)
+            return
+        errors.append(f"curl: {r.stderr.strip()[:160]}")
+        tmp.unlink(missing_ok=True)
+    raise RuntimeError(" | ".join(errors))
+
+
 def path_for(kind: str, season: int, dest: str | Path = DEFAULT_DIR) -> Path:
     return Path(dest) / f"{FILES[kind][1]}_{season}.parquet"
 
@@ -60,14 +93,10 @@ def fetch(seasons: list[int], kinds=("pbp", "rosters", "snaps"), dest: str | Pat
             if not fresh:
                 tag, stem = FILES[kind]
                 url = URL.format(tag=tag, stem=stem, season=season)
-                tmp = p.with_suffix(".part")
                 try:
-                    with urlopen(url, timeout=120) as r, open(tmp, "wb") as f:
-                        f.write(r.read())
-                    tmp.replace(p)
+                    download_to(url, p, 180)
                     log(f"downloaded {p.name}")
                 except Exception as e:  # keep a stale copy rather than failing the run
-                    tmp.unlink(missing_ok=True)
                     if not p.exists():
                         raise RuntimeError(f"could not download {url}: {e}") from e
                     log(f"WARN using cached {p.name} ({e})")
@@ -85,8 +114,7 @@ def fetch_games(dest: str | Path = DEFAULT_DIR, max_age_hours: float = 6.0, log=
         return p
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
-        with urlopen(GAMES_URL, timeout=60) as r:
-            p.write_bytes(r.read())
+        download_to(GAMES_URL, p, 60)
         log(f"downloaded {p.name}")
     except Exception as e:
         if not p.exists():
