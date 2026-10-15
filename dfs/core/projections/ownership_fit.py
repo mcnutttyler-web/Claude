@@ -195,11 +195,15 @@ def cross_validate(d: pd.DataFrame, alpha: float = 3.0) -> pd.DataFrame:
         m = fit(train, alpha)
         pm, ph = predict(m, test), heuristic(test)
         rel = test["own"].ge(0.03) | pm.ge(0.03) | ph.ge(0.03)  # players that matter
-        rows.append({
+        row = {
             "slate": s, "n": int(rel.sum()),
             "mae_model": 100 * (pm - test["own"])[rel].abs().mean(),
             "mae_heur": 100 * (ph - test["own"])[rel].abs().mean(),
-        })
+        }
+        if "own_source" in test and test["own_source"].notna().any():     # published ownership (e.g. OWS)
+            psrc = normalize(test.assign(_s=test["own_source"].fillna(0) / 100), "_s")
+            row["mae_source"] = 100 * (psrc - test["own"])[rel].abs().mean()
+        rows.append(row)
     rep = pd.DataFrame(rows)
     rep["model_wins"] = rep["mae_model"] < rep["mae_heur"]
     return rep.round(2)
@@ -224,6 +228,9 @@ def main():
         print(rep.to_string(index=False))
         print(f"\nModel {rep['mae_model'].mean():.2f} vs heuristic {rep['mae_heur'].mean():.2f}; "
               f"model wins {int(rep['model_wins'].sum())}/{len(rep)} slates.")
+        if "mae_source" in rep:
+            print(f"Published source (own_source, e.g. OWS): {rep['mae_source'].mean():.2f} — use the fitted model "
+                  f"only if it also beats this.")
         print("Switch over once the model wins the 3 most recent slates.")
     if a.fit:
         with open(a.model, "w") as f:

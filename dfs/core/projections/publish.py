@@ -30,7 +30,7 @@ from core.projections.sources import (SourceSpec, load_source_specs, read_actual
 from core.projections.distributions import simulate
 from core.projections.dst import dst_model_rows
 from core.projections.market import market_rows, read_props
-from core.projections.ownership import classic_ownership, showdown_ownership
+from core.projections.ownership import cash_from_gpp, classic_ownership, salary_feasible, showdown_ownership
 from core.projections.vegas import consensus_lines, read_odds, team_environment
 from core.projections.weather import apply_weather, read_weather
 from sports.base import SportConfig, load_sport
@@ -44,7 +44,7 @@ SCHEMA_DST = ["sacks", "def_int", "fum_rec", "def_td", "ret_td", "safety", "bloc
 SCHEMA_K = ["fga_0_39", "fga_40_49", "fga_50_plus", "fgm", "xp"]
 SCHEMA_POINTS = ["mean", "median", "p10", "p25", "p75", "p90", "std", "p_value_cash", "p_value_gpp",
                  "p_300_pass", "p_100_rush", "p_100_rec"]
-SCHEMA_OWN = ["own_gpp", "own_cash", "own_cpt", "own_flex", "own_heuristic"]
+SCHEMA_OWN = ["own_gpp", "own_cash", "own_cpt", "own_flex", "own_heuristic", "own_source"]
 SCHEMA_CAL = ["proj_model", "proj_dff", "proj_final", "proj_cal", "proj_source"]
 SCHEMA_META = ["source_breakdown", "n_sources", "source_sd", "confidence", "disagreement_flag", "override_flag",
                "p_play", "team_total", "game_total", "spread", "updated_at", "input_hash", "seed"]
@@ -282,6 +282,31 @@ def build_projections(
     if mode == "classic":
         t["own_heuristic"] = np.nan
         t.loc[pool, "own_heuristic"] = classic_ownership(t[pool], params, "gpp")
+        src = t.loc[pool, "own_gpp"]
+        t["own_source"] = np.nan
+        if src.notna().any():
+            # published (e.g. OWS) GPP ownership first; players it doesn't cover get min(heuristic, 1%)
+            t.loc[pool, "own_source"] = src
+            miss = pool & t["own_gpp"].isna()
+            t.loc[miss, "own_gpp"] = np.minimum(t.loc[miss, "own_heuristic"], 0.01)
+            if miss.any():
+                warnings.append(f"own_gpp: from projection source; {int(miss.sum())} uncovered players set to "
+                                f"min(heuristic, 1%)")
+            # keep DK roster totals (QB 100%, DST 100%, RB+WR+TE 700%) after filling the uncovered players
+            g = t.loc[pool, ["position", "own_gpp"]]
+            for grp, tot in ((["QB"], 1.0), (["DST"], 1.0), (["RB", "WR", "TE"], 7.0)):
+                m = g["position"].isin(grp)
+                ssum = float(g.loc[m, "own_gpp"].sum())
+                if ssum > 0:
+                    t.loc[g.index[m], "own_gpp"] = g.loc[m, "own_gpp"] * tot / ssum
+            implied = float((t.loc[pool, "own_gpp"] * t.loc[pool, "salary"]).sum())
+            if implied > 50000:
+                t.loc[pool, "own_gpp"] = salary_feasible(t.loc[pool, "own_gpp"], t[pool], 49900.0,
+                                                         float(params.get("ownership.cap")["gpp"]))
+                warnings.append(f"own_gpp: source ownership implied a ${implied:,.0f} average lineup — tilted under the cap")
+            if t.loc[pool, "own_cash"].isna().all():
+                t.loc[pool, "own_cash"] = cash_from_gpp(t.loc[pool, "own_gpp"], t[pool], params)
+                warnings.append("own_cash: sharpened from the source's GPP ownership (cash fields concentrate harder)")
         for col, fld in (("own_gpp", "gpp"), ("own_cash", "cash")):
             if t.loc[pool, col].isna().all():
                 t.loc[pool, col] = classic_ownership(t[pool], params, fld)
@@ -481,6 +506,8 @@ def archive_pool(table: pd.DataFrame) -> pd.DataFrame:
                         "team_total": t["team_total"]})
     if "own_heuristic" in t:
         out["own_heuristic"] = (100 * t["own_heuristic"]).round(2)
+    if "own_source" in t and t["own_source"].notna().any():
+        out["own_source"] = (100 * t["own_source"]).round(2)        # published ownership (e.g. OWS), in %
     return out
 
 

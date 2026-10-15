@@ -55,13 +55,14 @@ def own_projections_panel():
     """Bottom-up public model (nflverse + Vegas), optionally blended 50/50 with a free consensus CSV."""
     import tempfile
     from core.projections.publish import build_projections, lineup_csv
-    from core.projections.sources import SourceSpec
+    from core.projections.sources import SourceSpec, source_name
     st.caption("Vegas lines → team plays and pass rate → each player's target/carry share from nflverse "
                "play-by-play → stat lines → DK points. Optional: blend 50/50 with a free consensus CSV "
                "(e.g. DailyFantasyFuel), which also supplies spreads/totals and injury tags.")
     badge("Model constants")
     c1, c2, c3 = st.columns(3)
-    cons = c1.file_uploader("Consensus projections (optional, e.g. DFF cheat sheet)", type=["csv"], key="own_cons")
+    cons = c1.file_uploader("Consensus projections (optional; DFF, OWS, ... — several are averaged)", type=["csv"],
+                            key="own_cons", accept_multiple_files=True) or []
     odds = c2.file_uploader("odds.csv (optional: book, away, home, spread_home, total)", type=["csv"], key="own_odds")
     inj = c3.file_uploader("injuries.csv (optional: name, team, status[, practice])", type=["csv"], key="own_inj")
     fetch = st.checkbox("Download latest nflverse data first (needs internet; cached for 12 h)", value=True)
@@ -69,10 +70,12 @@ def own_projections_panel():
         with tempfile.TemporaryDirectory() as d, st.spinner("Building projections (about 30 s)…"):
             d = Path(d)
             (d / "sal.csv").write_bytes(ss["sal_raw"])
-            sources = []
-            if cons is not None:
-                (d / "cons.csv").write_bytes(cons.getvalue())
-                sources = [SourceSpec(name="consensus", path=str(d / "cons.csv"))]
+            sources, srcs = [], {}
+            for f in cons:
+                name = source_name(f.name, f.getvalue(), set(srcs))
+                (d / f"{name}.csv").write_bytes(f.getvalue())
+                sources.append(SourceSpec(name=name, path=str(d / f"{name}.csv")))
+                srcs[name] = f.getvalue()
             op = ip = None
             if odds is not None:
                 op = d / "odds.csv"
@@ -90,7 +93,8 @@ def own_projections_panel():
             from core.projections.publish import archive_pool
             pool = archive_pool(run.table).to_csv(index=False).encode()
             ss["own_pool"] = pool
-            ss["own_cons_raw"] = cons.getvalue() if cons is not None else None
+            ss["own_cons_raw"] = srcs.get("dff")
+            ss["own_sources_raw"] = {k: v for k, v in srcs.items() if k != "dff"}
             wk = ROOT / "data" / "weekly"
             wk.mkdir(parents=True, exist_ok=True)
             (wk / "my_projections.csv").write_bytes(pool)
@@ -131,14 +135,14 @@ with st.sidebar:
                    "After the slate, add your DK contest standings (small-field / single-entry).")
         stand = st.file_uploader("DK contest standings CSVs", type=["csv"], accept_multiple_files=True, key="arc_stand")
         have = {"salaries": ss.get("sal_raw") is not None, "DFF": ss.get("own_cons_raw") is not None,
-                "pool": ss.get("own_pool") is not None}
+                "other sources": len(ss.get("own_sources_raw") or {}), "pool": ss.get("own_pool") is not None}
         st.caption("Ready: " + ", ".join(f"{k} {'✓' if v else '—'}" for k, v in have.items())
                    + f", standings {len(stand or [])}")
         if st.button("Archive", key="arc_go"):
             msgs = []
             dest = archive_week(int(a_season), int(a_week), salaries=ss.get("sal_raw"), dff=ss.get("own_cons_raw"),
                                 pool=ss.get("own_pool"), standings={f.name: f.getvalue() for f in stand or []},
-                                log=msgs.append)
+                                log=msgs.append, sources=ss.get("own_sources_raw"))
             st.success(f"Saved to {dest.relative_to(ROOT)}: {len(msgs)} files")
             for m_ in msgs:
                 st.caption(m_)

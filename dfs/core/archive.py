@@ -2,6 +2,7 @@
 
   dk_salaries.csv       DK salary export for the slate
   dff.csv               the free consensus used (DailyFantasyFuel) — your own consensus archive for later blend fits
+  source_<name>.csv     any other projection source used that week (e.g. OWS)
   my_projections.csv    pre-lock pool: name, pos, salary, proj (final calibrated), team_total, own_heuristic
                         (+ prev_salary, filled from last week's archived dk_salaries.csv when present)
   standings_<name>.csv  DK contest standings exports (small-field / single-entry), added after the slate
@@ -40,7 +41,7 @@ def _prev_salaries(season: int, week: int, root: Path) -> pd.DataFrame | None:
 
 
 def archive(season: int, week: int, root: str | Path = DEFAULT_ROOT, salaries=None, dff=None, pool=None,
-            standings: list | dict | None = None, log=print) -> Path:
+            standings: list | dict | None = None, log=print, sources: dict | None = None) -> Path:
     """Copy this week's files into the archive. standings: list of paths, or {filename: bytes}."""
     dest = week_dir(season, week, root)
     dest.mkdir(parents=True, exist_ok=True)
@@ -48,6 +49,9 @@ def archive(season: int, week: int, root: str | Path = DEFAULT_ROOT, salaries=No
         if src is not None:
             _put(src, dest / name)
             log(f"  -> {dest / name}")
+    for name, src in (sources or {}).items():
+        _put(src, dest / f"source_{name}.csv")
+        log(f"  -> {dest / f'source_{name}.csv'}")
     if pool is not None:
         df = pd.read_csv(io.BytesIO(pool)) if isinstance(pool, (bytes, bytearray)) else pd.read_csv(pool)
         prev = _prev_salaries(season, week, Path(root))

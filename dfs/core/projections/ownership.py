@@ -109,3 +109,44 @@ def showdown_ownership(df: pd.DataFrame, params: Params, field: str = "gpp") -> 
     cpt = _cap(wc / wc.sum() * t["CPT"], cap)
     flex = _cap(wf / wf.sum() * t["FLEX"], min(cap * 1.5, 1.0))
     return cpt, flex
+
+
+def salary_feasible(own: pd.Series, df: pd.DataFrame, limit: float, cap: float) -> pd.Series:
+    """Tilt shares toward cheaper players (exp(-theta x $K), renormalized within each position so position totals
+    are kept) until sum(own x salary) <= limit. Unchanged when already feasible."""
+    sal = df["salary"].astype(float)
+    if float((own * sal).sum()) <= limit:
+        return own
+    tot = own.groupby(df["position"]).transform("sum")
+
+    def tilt(th):
+        w = own * np.exp(-th * sal / 1000)
+        out = w / w.groupby(df["position"]).transform("sum").replace(0, np.nan) * tot
+        out = out.fillna(0.0)
+        for _, g in df.groupby("position"):
+            out.loc[g.index] = _cap(out.loc[g.index], cap)
+        return out
+
+    lo, hi = 0.0, 0.5
+    while float((tilt(hi) * sal).sum()) > limit and hi < 64:
+        hi *= 2
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if float((tilt(mid) * sal).sum()) > limit else (lo, mid)
+    return tilt(hi)
+
+
+def cash_from_gpp(own_gpp: pd.Series, df: pd.DataFrame, params: Params) -> pd.Series:
+    """Cash-field ownership from a published GPP ownership projection: cash fields concentrate harder on the same
+    plays, so shares are sharpened (own ** gamma, gamma = cash/gpp temperature ratio) within each position, keeping
+    each position's total, then capped and kept salary-feasible."""
+    t = params.get("ownership.temperature")
+    gamma = float(t["cash"]) / float(t["gpp"])
+    cap = float(params.get("ownership.cap")["cash"])
+    base = own_gpp.clip(lower=1e-4)
+    w = base ** gamma
+    tot = own_gpp.groupby(df["position"]).transform("sum")
+    out = (w / w.groupby(df["position"]).transform("sum") * tot).fillna(0.0)
+    for _, g in df.groupby("position"):
+        out.loc[g.index] = _cap(out.loc[g.index], cap)
+    return salary_feasible(out, df, float(params.get("ownership.max_implied_salary")["cash"]), cap)

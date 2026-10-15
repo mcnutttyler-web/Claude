@@ -62,6 +62,24 @@ class SourceSpec:
     mapping: dict = field(default_factory=dict)
 
 
+def source_name(filename: str, raw: bytes, taken: set | None = None) -> str:
+    """dff / ows / <file stem> for an uploaded projections file (blend breakdown + archive file names)."""
+    import re
+    taken = taken or set()
+    head = raw[:400].decode("utf-8", "ignore").lower()
+    low = filename.lower()
+    if "ppg_projection" in head or "dff" in low:
+        base = "dff"
+    elif "ows" in low or ("team ownership" in head and "player id" in head):
+        base = "ows"
+    else:
+        base = re.sub(r"[^a-z0-9]+", "_", Path(filename).stem.lower()).strip("_")[:24] or "source"
+    name, k = base, 2
+    while name in taken:
+        name, k = f"{base}{k}", k + 1
+    return name
+
+
 def load_source_specs(path: str | Path) -> list[SourceSpec]:
     with open(path) as f:
         d = yaml.safe_load(f)

@@ -138,6 +138,19 @@ python scripts/archive_week.py 2026 6 --salaries DKSalaries.csv --dff dff.csv --
 python scripts/ownership_fit.py data/archive --cv   # once >= 3 slates are archived with standings
 python scripts/ownership_fit.py data/archive --fit  # -> data/ownership_model.json (GPP tab toggle uses it)
 ```
+Projection sources and ownership:
+- **Sources:** the build panel accepts several consensus files at once (e.g. DFF and OWS). They are averaged
+  equally into the consensus, then blended 50/50 with the own model. In `my_projections.csv`, `proj_dff` holds
+  that consensus average.
+- **GPP ownership:** a source's published ownership comes first.
+  - Players it doesn't cover get min(heuristic, 1%).
+  - Totals are rescaled to QB 100%, DST 100%, RB+WR+TE 700%.
+  - It is tilted under the salary cap if needed.
+- **Cash ownership:** derived from the source's GPP ownership by sharpening (cash fields concentrate harder).
+- **Fallback:** the v1 heuristic is used only when no source provides ownership.
+- **Archive:** extra sources are saved as `source_<name>.csv`, and the pool export carries `own_source`. That lets
+  `ownership_fit --cv` compare the fitted model against the published ownership, not just the heuristic.
+
 In the app:
 - **Build projections** writes `data/weekly/my_projections.csv`, with name, pos, salary, proj (calibrated),
   team_total and own_heuristic (%).

@@ -173,3 +173,76 @@ def test_archive_week_layout_and_prev_salary(tmp_path):
                                                 "standings_contest-standings-99.csv"}
     mp = pd.read_csv(dest / "my_projections.csv")
     assert mp["prev_salary"].tolist()[:2] == [5000, 6000] and np.isnan(mp["prev_salary"].iloc[2])
+
+
+# ------------------------------------------------------------------ published (OWS-style) ownership
+def test_cash_from_gpp_sharpens_and_stays_feasible():
+    from core.projections.ownership import cash_from_gpp
+    df = _pool(5).rename(columns={"pos": "position"})
+    rng = np.random.default_rng(0)
+    raw = pd.Series(rng.gamma(0.6, 1.0, len(df)), index=df.index)
+    own = raw.groupby(df["position"]).transform(lambda x: x / x.sum())
+    own[df["position"].isin(["RB", "WR", "TE"])] *= 7 / own[df["position"].isin(["RB", "WR", "TE"])].sum()
+    from core.projections.ownership import salary_feasible
+    own = salary_feasible(own, df, 47000, 0.6)          # a feasible published projection, with room under the cap
+    cash = cash_from_gpp(own, df, Params())
+    for pos in ("QB", "RB", "WR"):
+        m = df["position"] == pos
+        assert cash[m].sum() == pytest.approx(own[m].sum(), rel=1e-6)          # position totals kept
+        top = own[m].idxmax()
+        assert cash[top] >= own[top] - 1e-9                                    # chalk gets chalkier
+    assert float((cash * df["salary"]).sum()) <= 49800 + 1
+
+
+def test_source_ownership_end_to_end(tmp_path):
+    from core.projections.publish import archive_pool, build_projections
+    from core.projections.sources import SourceSpec
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data" / "sample"
+    sal = root / "DKSalaries.csv"
+    from core.ingest import read_projections
+    proj = read_projections(root / "projections.csv")
+    src = pd.DataFrame({"Player": proj["name"], "Team": proj["team"], "Position": proj["position"],
+                        "Projection": proj["median"]})
+    # published ownership for everyone except the last 5 rows (they must get min(heuristic, 1%))
+    w = np.exp(src["Projection"] / 6)
+    src["Ownership"] = (100 * w / w.groupby(src["Position"]).transform("sum")).round(2)
+    src.loc[src.index[-5:], "Ownership"] = np.nan
+    p = tmp_path / "ows.csv"
+    src.to_csv(p, index=False)
+    run = build_projections(sal, [SourceSpec("ows", str(p))], "nfl", simulate_outcomes=False, public_model=False)
+    t = run.table[run.table["mean"].notna() & (run.table["mean"] > 0)]
+    tot = t.groupby("position")["own_gpp"].sum()
+    assert tot["QB"] == pytest.approx(1.0, abs=1e-6) and tot["DST"] == pytest.approx(1.0, abs=1e-6)
+    assert tot[["RB", "WR", "TE"]].sum() == pytest.approx(7.0, abs=1e-6)
+    assert float((t["own_gpp"] * t["salary"]).sum()) <= 50000 + 1
+    assert any("from projection source" in w_ for w_ in run.warnings)
+    assert t["own_source"].notna().sum() > 0
+    assert "own_source" in archive_pool(run.table).columns
+
+
+def test_ownership_cv_reports_source_baseline(tmp_path):
+    root = tmp_path / "archive"
+    rng = np.random.default_rng(9)
+    for w in (1, 2, 3):
+        pool = _pool(w)
+        d = OF.build_features(pool.assign(slate="x"))
+        own = OF.normalize(d.assign(_t=np.exp(1.2 * (d["value"] - d["value"].mean()))), "_t")
+        pool["own_source"] = 100 * own.to_numpy() * rng.uniform(0.8, 1.2, len(own))
+        dest = archive(2026, w, root, pool=pool.to_csv(index=False).encode(), log=lambda m: None)
+        _standings_csv(dest / "standings_main.csv", dict(zip(pool["name"], own)))
+    rep = OF.cross_validate(OF.build_features(OF.load_archive(str(root))))
+    assert "mae_source" in rep and rep["mae_source"].notna().all()
+
+
+def test_archive_saves_extra_sources(tmp_path):
+    dest = archive(2026, 6, tmp_path, sources={"ows": b"Player,Ownership\nA,10\n"}, log=lambda m: None)
+    assert (dest / "source_ows.csv").read_bytes().startswith(b"Player")
+
+
+def test_source_name_detection():
+    from core.projections.sources import source_name
+    assert source_name("DFF_NFL_cheatsheet_2026-10-15.csv", b"first_name,last_name,ppg_projection") == "dff"
+    assert source_name("ows-dk-Week-6-Main-projections.csv", b"Player,Position") == "ows"
+    assert source_name("x.csv", b"Player,Team Ownership,Player ID") == "ows"
+    assert source_name("My Picks.csv", b"name", {"my_picks"}) == "my_picks2"
