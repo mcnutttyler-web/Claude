@@ -1,0 +1,26 @@
+[project]
+name = "dfs"
+version = "0.0.1"
+description = "DraftKings NFL projection, simulation and lineup system (personal use)"
+requires-python = ">=3.11"
+# Same as requirements.txt (what the Streamlit app already needs). The spec's proposed stack (typer, polars,
+# duckdb, lightgbm, statsmodels, nflreadpy) is NOT added yet: each waits for approval in the phase that needs it.
+dependencies = [
+  "pandas>=2.1",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "pulp==2.9.0",
+  "streamlit>=1.45",
+  "pyarrow>=14",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

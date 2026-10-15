@@ -1,0 +1,41 @@
+# DraftKings NFL Classic scoring — single source of truth for score_stat_line().
+# Verify against DK "Rules & Scoring" (draftkings.com/help/rules/nfl) at the start of every season.
+# Last checked against DK's published rules: values below are DK's long-standing NFL Classic scoring.
+# A test asserts these match sports/nfl/config.yaml (the app's copy), so the two cannot drift.
+
+offense:                      # points per unit
+  pass_yds: 0.04              # 1 pt per 25 passing yards (fractional; DK does not round per 25)
+  pass_td: 4
+  int: -1                     # interception thrown
+  rush_yds: 0.1
+  rush_td: 6
+  rec: 1                      # full PPR
+  rec_yds: 0.1
+  rec_td: 6
+  fumble_lost: -1
+  two_pt: 2                   # 2-pt conversion pass, run or catch
+  ret_td: 6                   # punt / kickoff / FG-miss return TD
+  fum_rec_td: 6               # offensive fumble recovery TD
+
+bonuses:                      # stat: [threshold, points]; threshold is INCLUSIVE (>=). 300 pass yds earns it, 99 rush yds does not.
+  pass_yds: [300, 3]
+  rush_yds: [100, 3]
+  rec_yds: [100, 3]
+
+dst:                          # points per event for the DST unit
+  sacks: 1
+  def_int: 2
+  fum_rec: 2
+  safety: 2
+  blocked_kick: 2             # blocked punt or FG
+  def_td: 6                   # INT / fumble / punt / kick / blocked-kick return TD
+  two_pt_return: 2            # 2-pt conversion or extra-point return
+
+dst_points_allowed:           # [max_points_allowed_inclusive, fantasy_points]; null = everything above
+  - [0, 10]
+  - [6, 7]
+  - [13, 4]
+  - [20, 1]
+  - [27, 0]
+  - [34, -1]
+  - [null, -4]
