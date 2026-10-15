@@ -82,8 +82,15 @@ def main(season: int | None = None, today: date | None = None):
 
     # 1. data
     log = []
-    nflverse.fetch([season - 1, season], dest=nflverse.DEFAULT_DIR, log=log.append)
+    # history 2016+ is needed for profiles/defense features; past seasons download once (~250 MB total)
+    nflverse.fetch(list(range(2016, season + 1)), dest=nflverse.DEFAULT_DIR, current=season,
+                   log=lambda m: log.append(m) if str(season) in m else None)
     nflverse.fetch_games(log=log.append)
+    for s in range(2016, season):
+        kinds = tuple(k for k, first in (("participation", 2016), ("ftn", 2022)) if s >= first
+                      and not MD.extra_path(k, s).exists())
+        if kinds:
+            MD.fetch_extra(s, kinds, max_age_hours=1e9, log=lambda m: None)
     have = MD.fetch_extra(season, log=log.append)
     games = pd.read_csv(nflverse.DEFAULT_DIR / "games.csv")
     pbp = pd.read_parquet(nflverse.path_for("pbp", season), columns=["game_id", "game_date", "season_type"])
@@ -111,7 +118,7 @@ def main(season: int | None = None, today: date | None = None):
     # 4. archetypes + flags (as of next week)
     path = Path(str(MODEL).format(season=season))
     if not path.exists():
-        lines += ["", f"Model {path.name} not found — run scripts/matchup_backtest.py (offseason fit)."]
+        lines += ["", f"Model {path.name} not found — run scripts/matchup_baseline.py then scripts/matchup_backtest.py (offseason fit)."]
         return _write(lines, today)
     m = E.EffectModel.load(path)
     cur = pg[pg["season"] == season]

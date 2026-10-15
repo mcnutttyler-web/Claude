@@ -4,7 +4,7 @@
     python scripts/matchup_backtest.py                         # B vs A, DvP straw man, k tuning, decision
 
 Writes docs/matchup_backtest.md, docs/live_2026_results.md, config/matchup.yaml (positions + k) and the 2026 model
-(trained on 2016-2025) to data/matchup/model_2026.json.
+(trained on 2016-2025) to config/matchup_model_2026.json.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from core.matchup.data import load  # noqa: E402
 from sports.base import load_sport  # noqa: E402
 
 BASE = ROOT / "data" / "matchup" / "baseline"
-MODEL = ROOT / "data" / "matchup" / "model_2026.json"
+MODEL = ROOT / "config" / "matchup_model_2026.json"
 LIVE_SEASON = 2026
 
 

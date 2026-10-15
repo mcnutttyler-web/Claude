@@ -16,7 +16,7 @@ from core.matchup import effect as E
 from core.matchup.data import load
 
 ROOT = Path(__file__).resolve().parents[2]
-MODEL = ROOT / "data" / "matchup" / "model_{season}.json"
+MODEL = ROOT / "config" / "matchup_model_{season}.json"      # committed: refit once per offseason
 
 
 def frozen_features(m: E.EffectModel, pg: pd.DataFrame, dg: pd.DataFrame, games: pd.DataFrame | None,
