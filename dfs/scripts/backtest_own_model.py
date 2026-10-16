@@ -34,7 +34,7 @@ def dk_points(pg: pd.DataFrame) -> pd.Series:
             + 3 * (pg["pass_yds"] >= 300) + 3 * (pg["rush_yds"] >= 100) + 3 * (pg["rec_yds"] >= 100))
 
 
-def week_frame(season: int, week: int, games: pd.DataFrame, sport, params, cache: dict) -> pd.DataFrame | None:
+def week_frame(season: int, week: int, games: pd.DataFrame, sport, params, cache: dict, return_model: bool = False):
     g = games[(games["season"] == season) & (games["week"] == week) & (games["game_type"] == "REG")]
     if g.empty or g["home_score"].isna().all():
         return None
@@ -92,6 +92,8 @@ def week_frame(season: int, week: int, games: pd.DataFrame, sport, params, cache
         hist = hist.combine_first(ph)
     out["naive"] = out["pid"].map(hist)
     out["season"], out["week"] = season, week
+    if return_model:
+        return out[out["pid"].isin(played)], res, env, slate, act
     return out[out["pid"].isin(played)]
 
 

@@ -82,6 +82,8 @@ nfl:
 
   distributions:                            # P2 Monte Carlo
     n_sims: {value: 10000, calibrated: true, source: "build prompt §3.8"}
+    game_sim: {value: true, calibrated: true,
+               source: "drive-level game simulator (src/dfs/sim/game.py) for every own-model player and DST; other players keep the factor sim. Decided by docs/game_sim_backtest.md"}
     loading: {value: {game: 0.45, qb_pass: 0.60, catcher_pass: 0.38, share: 0.75, team_rush: 0.30}, calibrated: false,
               source: "factor loadings: game shock, team pass shock (QB vs pass catchers), zero-sum target-share shock among a team's pass catchers (makes WR-WR ~0 while QB-WR ~0.35-0.40), team rush shock"}
     td_shock_scale: {value: 0.35, calibrated: false, source: "lognormal multiplier on TD lambda per unit team shock"}

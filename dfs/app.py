@@ -17,7 +17,7 @@ import yaml
 from core.cash import CashResult, describe, objective_a
 from core.cash_sim import read_consensus, run_cash
 from core.field import fit_field
-from core.slate_sim import player_metrics, simulate_slate
+from core.slate_sim import SlateSims, player_metrics, simulate_slate
 from core.contest import break_even_table, load_contest, template_paths
 from core.export import ExportError, assign_lineups_to_entries, read_entries, upload_csv, write_entries
 from core.lineup import export_ids
@@ -35,6 +35,28 @@ OWN_MODEL = ROOT / "data" / "ownership_model.json"
 
 st.set_page_config(page_title="DK Lineup Generator", layout="wide")
 ss = st.session_state
+
+
+def slate_sims(b, n: int, mode: str):
+    """Sims for the lineup tools. When the own-projection run used the drive-level game simulator, use its matrix
+    (players matched by DK ID; anyone it lacks is filled from the copula sim); otherwise the copula sim."""
+    run = ss.get("own_run")
+    copula = lambda: simulate_slate(b.slate, sport, int(n), int(APP_CFG["seed"]), mode)  # noqa: E731
+    if mode != "classic" or run is None or getattr(run, "game_sims", None) is None or run.sims is None:
+        return copula()
+    ids = run.table.loc[run.sims.index, "dk_id"].astype(str).tolist()
+    pos = {d: k for k, d in enumerate(ids)}
+    want = b.slate["id"].astype(str).tolist()
+    missing = [j for j, d in enumerate(want) if d not in pos]
+    out = np.zeros((run.sims.sims.shape[0], len(want)), dtype=np.float32)
+    for j, d in enumerate(want):
+        if d in pos:
+            out[:, j] = run.sims.sims[:, pos[d]]
+    if missing:
+        fill = simulate_slate(b.slate, sport, out.shape[0], int(APP_CFG["seed"]), mode)
+        out[:, missing] = fill.scores[:, missing]
+    return SlateSims(out, None, 0.0, int(APP_CFG["seed"]),
+                     {"source": "game simulator (drive-level) + factor sim", "copula_filled": len(missing)})
 
 
 def badge(label: str) -> None:
@@ -322,7 +344,7 @@ with tabs[2]:
         cons_up = st.file_uploader("consensus_cash.csv (optional)", type=["csv"], key="cons")
         if st.button("Run sim cash engine", type="primary"):
             if "sims" not in ss:
-                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), mode)
+                ss["sims"] = slate_sims(b, int(APP_CFG["sims"]["n"]), mode)
             spec = sport.mode(mode)
             cons = read_consensus(io.BytesIO(cons_up.getvalue()), b.slate, spec) if cons_up else None
             own_col = "cash_ownership" if "cash_ownership" in b.slate and b.slate["cash_ownership"].notna().any() \
@@ -390,7 +412,7 @@ with tabs[4]:
     else:
         n = st.select_slider("Sims", [2000, 5000, 10000, 20000, 50000], value=int(APP_CFG["sims"]["n"]))
         if st.button("Run slate sims"):
-            ss["sims"] = simulate_slate(b.slate, sport, int(n), int(APP_CFG["seed"]), b.mode)
+            ss["sims"] = slate_sims(b, int(n), b.mode)
         if "sims" in ss:
             sm = ss["sims"]
             st.caption(f"Run log: {sm.run_log}")
@@ -443,7 +465,7 @@ with tabs[3]:
         if st.button("Build GPP portfolio", type="primary"):
             from core.gpp import run_gpp
             if "sims" not in ss:
-                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), b.mode)
+                ss["sims"] = slate_sims(b, int(APP_CFG["sims"]["n"]), b.mode)
             with st.spinner("Generating candidates, fitting the field, selecting the portfolio..."):
                 ss["gpp_run"] = run_gpp(sport, gslate, ss["sims"].scores, contest, int(n_lu), pre, b.mode,
                                         n_candidates=int(n_cand), optimal_sims=int(opt_n), max_exposure=max_exp)
@@ -495,8 +517,7 @@ with tabs[6]:
                     actual = {(str(r[key]) if key == "id" else m.get(r[key], "")): float(r["points"])
                               for _, r in a.iterrows()}
                 if "sims" not in ss:
-                    ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]),
-                                                b.mode)
+                    ss["sims"] = slate_sims(b, int(APP_CFG["sims"]["n"]), b.mode)
                 own = b.slate["ownership"].fillna(0).to_numpy() if "ownership" in b.slate else None
                 if own is None:
                     st.error("Late swap needs projected ownership for the field model.")
@@ -596,7 +617,7 @@ with tabs[8]:
         mine = st.text_input("Your entry IDs or names (comma separated)")
         if st.button("Run flashback"):
             if "sims" not in ss:
-                ss["sims"] = simulate_slate(b.slate, sport, int(APP_CFG["sims"]["n"]), int(APP_CFG["seed"]), b.mode)
+                ss["sims"] = slate_sims(b, int(APP_CFG["sims"]["n"]), b.mode)
             spec = sport.mode(b.mode)
             ids = [x.strip() for x in mine.split(",") if x.strip()]
             ids += list(stnd.entries.loc[stnd.entries["entry_name"].str.split(" ").str[0].isin(ids), "entry_id"])

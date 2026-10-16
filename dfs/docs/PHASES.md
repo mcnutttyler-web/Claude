@@ -15,3 +15,10 @@ not changed until a phase beats what it replaces out of sample.
     differences.
   - B: matches DK-reported FPTS in `tests/fixtures/dk_real_box_scores.csv`. Copy the template, then fill in 10 or more
     rows from DraftKings contest results (player FPTS).
+
+## Phase 4 (simulator): delivered early, at your request
+
+- The drive-level game simulator is in `src/dfs/sim/` and documented in `docs/GAME_SIM.md`.
+- It uses the existing bottom-up model (`core/projections/bottomup.py`) as its component engine, so Phases 1–3 are
+  not rebuilt yet.
+- It beat both existing simulators out of sample (2023–2025) and is on by default (`distributions.game_sim`).

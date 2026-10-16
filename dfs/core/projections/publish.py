@@ -57,6 +57,7 @@ class ProjectionRun:
     log: dict
     warnings: list[str] = field(default_factory=list)
     sims: object = None             # distributions.SimResult when outcomes were simulated
+    game_sims: object = None        # dfs.sim.game.GameSims columns merged into sims (see run_game_sim)
 
 
 def _hash_inputs(paths: list) -> str:
@@ -266,6 +267,14 @@ def build_projections(
         t["median"] = t["mean"]
         t["p10"] = t.get("floor", np.nan)
         t["p90"] = t.get("ceiling", np.nan)
+    game_sims = None
+    if sim is not None and model is not None and len(model.rows) and mode == "classic" \
+            and bool(params.get("distributions.game_sim")):
+        try:
+            game_sims, gnotes = run_game_sim(t, model, sim, n_sims or int(params.get("distributions.n_sims")), seed)
+            warnings.extend(gnotes)
+        except Exception as e:                       # never lose the projections over the simulator
+            warnings.append(f"game simulator failed ({e}); using the factor simulator")
     out_rows = t["p_play"].fillna(1.0) <= 0
     for c in ("mean", "median", "p10", "p25", "p75", "p85", "p90", "std", "p_value_cash", "p_value_gpp"):
         if c in t:
@@ -354,7 +363,52 @@ def build_projections(
         tc = tc.merge(model.teams, on="team", how="outer")
     run = ProjectionRun(table, tc, log, warnings)
     run.sims = sim
+    run.game_sims = game_sims
     return run
+
+
+def run_game_sim(t: pd.DataFrame, model, sim, n_sims: int, seed: int):
+    """Replace the factor-sim columns of every own-model player (and every DST whose opponent is modeled) with the
+    drive-level game simulator, re-centered to the final projection t['mean']. Updates t's percentiles in place.
+    Players without nflverse history keep their factor-sim column."""
+    import sys
+    src = Path(__file__).resolve().parents[2] / "src"
+    if str(src) not in sys.path:
+        sys.path.insert(0, str(src))
+    from dfs.sim.game import simulate_games
+
+    mrows = model.rows[model.rows["points"] > 0].set_index("dk_index")
+    mrows = mrows.drop(columns=[c for c in ("name", "team", "position") if c in mrows]).join(
+        t[["name", "team", "position", "p_play"]], how="inner")
+    env = t.loc[t["team"].isin(model.teams["team"]), ["team", "opp", "game_id"]].dropna().drop_duplicates("team")
+    dst = t[t["position"] == "DST"]
+    gs = simulate_games(mrows, model.teams, env, n_sims=n_sims, seed=seed, def_inputs=model.dst_inputs,
+                        dst_teams=list(dst["team"]), center=None)
+    col = {int(k): j for j, k in enumerate(sim.index)}
+    done = []
+    for j, key in enumerate(gs.keys):
+        if isinstance(key, str) and key.startswith("DST:"):
+            hit = dst.index[dst["team"] == key[4:]]
+            if not len(hit):
+                continue
+            i = int(hit[0])
+        else:
+            i = int(key)
+        if i not in col or t.at[i, "mean"] != t.at[i, "mean"]:
+            continue
+        x = gs.points[:, j].astype(float)
+        target = float(t.at[i, "mean"])
+        m = x.mean()
+        x = x * (target / m) if t.at[i, "position"] != "DST" and m > 0.5 and 0.5 <= target / m <= 2 else x + (target - m)
+        sim.sims[:, col[i]] = x.astype(np.float32)
+        a = x if t.at[i, "position"] == "DST" else x[x != 0] if (x != 0).mean() > 0.05 else x
+        q = np.percentile(a, [10, 25, 50, 75, 85, 90])
+        for c, v in zip(("p10", "p25", "median", "p75", "p85", "p90"), q):
+            t.at[i, c] = float(v)
+        t.at[i, "std"] = float(a.std())
+        done.append(i)
+    return gs, [f"game simulator: {len(done)} players/DSTs from the drive-level sim; "
+                f"{int(t['mean'].notna().sum()) - len(done)} keep the factor sim"]
 
 
 def env_from_sources(rows: pd.DataFrame, slate: pd.DataFrame) -> pd.DataFrame | None:
