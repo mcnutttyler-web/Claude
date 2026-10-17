@@ -1,0 +1,21 @@
+team,opp,home_away,kickoff_et,spread,total,implied_total,wind_mph,precip,dome,notes
+CHI,ATL,away,2026-10-18 1:00 PM,-2.5,49.5,26.0,,,Y,"Range CHI -1.5 to -3.5, total 47.5-51.5; Caleb Q (torn hamstring, full practices)"
+ATL,CHI,home,2026-10-18 1:00 PM,2.5,49.5,23.5,,,Y,"Range CHI -1.5 to -3.5, total 47.5-51.5; Caleb Q (torn hamstring, full practices)"
+BAL,CLE,away,2026-10-18 1:00 PM,-3.5,40.0,21.75,15,,N,"Lamar OUT, Huntley starts; range -3.5 to -5.5, total 39.5-42.5"
+CLE,BAL,home,2026-10-18 1:00 PM,3.5,40.0,18.25,15,,N,"Lamar OUT, Huntley starts; range -3.5 to -5.5, total 39.5-42.5"
+IND,TEN,home,2026-10-18 1:00 PM,-7.0,44.5,25.75,,,Y,"Range -6.5 to -7, total 44.5 everywhere"
+TEN,IND,away,2026-10-18 1:00 PM,7.0,44.5,18.75,,,Y,"Range -6.5 to -7, total 44.5 everywhere"
+NE,NYJ,home,2026-10-18 1:00 PM,-7.5,43.5,25.5,10,slight chance rain,N,-7.5 / 43.5 most books
+NYJ,NE,away,2026-10-18 1:00 PM,7.5,43.5,18.0,10,slight chance rain,N,-7.5 / 43.5 most books
+NYG,NO,home,2026-10-18 1:00 PM,0.0,45.5,22.75,11,slight chance rain,N,Pick'em: books split NYG -1.5 / NO -1.5
+NO,NYG,away,2026-10-18 1:00 PM,-0.0,45.5,22.75,11,slight chance rain,N,Pick'em: books split NYG -1.5 / NO -1.5
+CAR,PHI,away,2026-10-18 1:00 PM,-3.5,38.5,21.0,10,rain possible,N,Line flipped from PHI -1.5 after Hurts OUT; total 43.5 -> 38.5
+PHI,CAR,home,2026-10-18 1:00 PM,3.5,38.5,17.5,10,rain possible,N,Line flipped from PHI -1.5 after Hurts OUT; total 43.5 -> 38.5
+PIT,TB,away,2026-10-18 1:00 PM,-2.5,39.5,21.0,17,9% rain,N,"Tampa: 17 mph wind, gusts 28-31 (FantasyAlarm)"
+TB,PIT,home,2026-10-18 1:00 PM,2.5,39.5,18.5,17,9% rain,N,"Tampa: 17 mph wind, gusts 28-31 (FantasyAlarm)"
+LAR,ARI,home,2026-10-18 4:05 PM,-12.5,51.5,32.0,,,Y,-12.5 / 51.5
+ARI,LAR,away,2026-10-18 4:05 PM,12.5,51.5,19.5,,,Y,-12.5 / 51.5
+BUF,LV,away,2026-10-18 4:25 PM,-5.0,55.5,30.25,,,Y,Range -4.5 to -5.5; total quoted 53.5 and 57.5 (rising)
+LV,BUF,home,2026-10-18 4:25 PM,5.0,55.5,25.25,,,Y,Range -4.5 to -5.5; total quoted 53.5 and 57.5 (rising)
+KC,LAC,home,2026-10-18 4:25 PM,-8.0,42.0,25.0,15,,N,"Range -7.5 to -8.5, total 41.5-42.5"
+LAC,KC,away,2026-10-18 4:25 PM,8.0,42.0,17.0,15,,N,"Range -7.5 to -8.5, total 41.5-42.5"
