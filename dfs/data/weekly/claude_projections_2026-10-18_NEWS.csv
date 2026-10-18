@@ -1,0 +1,9 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes,change
+Caleb Williams,CHI,ATL,QB,,19.0,12.4,26.6,6.3,6.4,,0.98,N,26.0,7,Yahoo;SI;Dimers;est;Yahoo;NFL.com;Yahoo live;ESPN inactives,0.6,ACTIVE (not on Bears inactives),19.0 -> 19.0: ACTIVE (not on Bears inactives)
+Tyson Bagent,CHI,ATL,QB,,0.0,0.0,0.0,0.2,0.5,,0.98,N,26.0,2,SI;est;Yahoo live,0.8,Backup: Caleb active,12.5 -> 0.0: Backup: Caleb active
+Rome Odunze,CHI,ATL,WR,,14.0,5.6,24.5,16.0,16.1,,0.98,N,26.0,0,est;est,0.35,Caleb active,13.5 -> 14.0: Caleb active
+Quinshon Judkins,CLE,BAL,RB,,13.0,5.2,22.8,2.5,4.0,Q,0.65,N,18.25,5,ESPN;Yahoo;est;SI;Yahoo;Browns.com,0.35,"Still unconfirmed at 11:45 ET; Dylan Sampson OUT, so more volume if active","12.0 -> 13.0: Still unconfirmed at 11:45 ET; Dylan Sampson OUT, so more volume if active"
+A.J. Brown,NE,NYJ,WR,,12.5,5.0,21.9,9.9,11.6,,0.98,N,25.5,5,Yahoo;SI;Yahoo;NBC;Yahoo live,0.5,ACTIVE (off IR); snap count unknown,12.0 -> 12.5: ACTIVE (off IR); snap count unknown
+Hunter Henry,NE,NYJ,TE,,10.0,3.5,18.0,4.6,6.6,,0.98,N,25.5,2,BR;Clutchpoints;est;est,0.35,A.J. Brown active,10.5 -> 10.0: A.J. Brown active
+DJ Moore,BUF,LV,WR,,12.5,3.8,23.8,3.1,3.4,Q,0.25,Y,30.25,3,Yahoo;est;TheBigLead;SI Bills,0.35,4:25 game: inactives ~2:55 ET; beat reporter expects rest before the bye,12.5 -> 12.5: 4:25 game: inactives ~2:55 ET; beat reporter expects rest before the bye
+Khalil Shakir,BUF,LV,WR,,13.0,5.2,22.8,14.2,14.8,,0.98,Y,30.25,0,est;est,0.3,Up if Moore sits (likely),12.5 -> 13.0: Up if Moore sits (likely)
