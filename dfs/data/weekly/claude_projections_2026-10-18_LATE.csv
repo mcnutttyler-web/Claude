@@ -1,0 +1,10 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes,late_swap_flag,change
+Jeremiyah Love,ARI,LAR,RB,,8.0,4.0,12.8,0.2,0.4,D,0.15,Y,19.5,3,PrizePicks;SI;est;Bleacher Report,0.35,"Reported to miss the game (one source, unconfirmed by team list); ARI backup RB not projected; team-reconciled x0.89",LATE SWAP,"8.1 -> 8.0: Reported to miss the game (one source, unconfirmed by team list); ARI backup RB not projected"
+Michael Wilson,ARI,LAR,WR,,11.6,4.6,20.3,6.1,8.2,,0.98,N,19.5,2,ESPN;BigLead;est;est,0.4,More targets if Love sits; team-reconciled x0.89,,11.2 -> 11.6: More targets if Love sits
+Trey McBride,ARI,LAR,TE,,14.7,5.1,26.5,24.5,21.1,,0.98,N,19.5,2,Dimers;BR;est,0.6,More targets if Love sits; team-reconciled x0.89,,14.3 -> 14.7: More targets if Love sits
+DJ Moore,BUF,LV,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,Y,30.25,5,Yahoo;est;TheBigLead;SI Bills;Raiders.com;Yahoo live,0.95,INACTIVE (shoulder): swap out if rostered,LATE SWAP,12.5 -> 0.0: INACTIVE (shoulder): swap out if rostered
+Khalil Shakir,BUF,LV,WR,,13.5,5.4,23.6,16.7,16.4,,0.98,Y,30.25,0,est;est;est,0.4,Moore inactive: WR1 targets,LATE SWAP,13.0 -> 13.5: Moore inactive: WR1 targets
+Dalton Kincaid,BUF,LV,TE,,10.0,3.5,18.0,5.5,7.5,,0.98,N,30.25,0,est;est,0.3,Moore inactive,,9.5 -> 10.0: Moore inactive
+Xavier Worthy,KC,LAC,WR,,12.5,5.0,21.9,10.0,11.5,,0.98,N,25.0,1,est;Arrowhead Pride,0.3,Rice and Thornton out,,12.0 -> 12.5: Rice and Thornton out
+Chiefs,KC,LAC,DST,,10.0,0.0,22.0,22.2,16.4,,1.0,N,25.0,4,NBC;Rotowire;Dimers;Chargers.com,0.55,LAC without LT Joe Alt,,9.5 -> 10.0: LAC without LT Joe Alt
+Justin Herbert,LAC,KC,QB,,11.5,7.5,16.1,1.0,1.7,,0.98,N,17.0,2,BR;est;Chargers.com,0.4,LT Joe Alt inactive; team-reconciled x0.92,,12.4 -> 11.5: LT Joe Alt inactive
