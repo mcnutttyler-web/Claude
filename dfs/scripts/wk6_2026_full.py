@@ -238,7 +238,7 @@ def checks(df: pd.DataFrame, t: pd.DataFrame) -> list[str]:
     out = []
     for _, g in t.assign(key=t.apply(lambda r: "-".join(sorted([r.team, r.opp])), axis=1)).groupby("key"):
         assert abs(g["implied_total"].sum() - g["total"].iloc[0]) < 0.01, g
-    assert len(t) == 20
+    assert len(t) == 2 * len(GAMES)
     for team in t["team"]:
         need = {"QB", "RB", "WR", "DST"}
         have = set(df.loc[(df.team == team) & (df["median"] > 0), "pos"])
