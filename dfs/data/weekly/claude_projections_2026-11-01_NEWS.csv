@@ -1,0 +1,30 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes,change
+Braelon Allen,NYJ,LV,RB,,15.7,5.6,27.8,12.5,11.4,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 16.5 -> calibrated 15.7,9.2 -> 15.7: teammate of an absence
+George Pickens,DAL,ARI,WR,,14.1,4.1,28.0,26.0,18.5,,0.98,N,30.75,2,OwnModel;nflverse,0.5,model 13.3 -> calibrated 14.1,14.1 -> 14.1: ACTIVE (was Q)
+Malik Willis,MIA,NE,QB,,14.0,6.5,22.4,1.1,1.8,,0.98,N,17.25,2,OwnModel;nflverse,0.5,model 13.7 -> calibrated 14.0,14.3 -> 14.0: line move
+Wan'Dale Robinson,TEN,CIN,WR,,13.3,4.4,25.0,9.8,9.4,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 12.4 -> calibrated 13.3,10.1 -> 13.3: teammate of an absence
+Tony Pollard,TEN,CIN,RB,,10.6,3.4,20.0,2.1,3.3,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 11.1 -> calibrated 10.6,8.7 -> 10.6: teammate of an absence
+Rhamondre Stevenson,NE,MIA,RB,,10.4,2.8,20.0,2.9,4.1,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 10.8 -> calibrated 10.4,7.8 -> 10.4: A.J. Brown and Henderson out; NE-MIA total down 2
+Garrett Wilson,NYJ,LV,WR,,8.9,2.3,19.4,2.5,3.7,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 7.5 -> calibrated 8.9,8.4 -> 8.9: teammate of an absence
+Mack Hollins,NE,MIA,WR,,8.7,2.3,19.8,2.4,3.6,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 7.4 -> calibrated 8.7,6.9 -> 8.7: A.J. Brown and Henderson out; NE-MIA total down 2
+Elic Ayomanor,TEN,CIN,WR,,8.2,2.3,18.9,1.4,2.4,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 6.9 -> calibrated 8.2,5.8 -> 8.2: teammate of an absence
+Hunter Henry,NE,MIA,TE,,7.9,2.1,17.5,4.0,4.5,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 7.2 -> calibrated 7.9,7.1 -> 7.9: A.J. Brown and Henderson out; NE-MIA total down 2
+DeMario Douglas,NE,MIA,WR,,7.7,2.2,17.9,1.6,2.7,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 6.5 -> calibrated 7.7,6.1 -> 7.7: A.J. Brown and Henderson out; NE-MIA total down 2
+Romeo Doubs,NE,MIA,WR,,7.6,2.2,18.9,1.6,2.7,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 7.6,6.0 -> 7.6: A.J. Brown and Henderson out; NE-MIA total down 2
+Omar Cooper Jr.,NYJ,LV,WR,,6.5,2.1,17.1,1.0,1.9,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 5.5 -> calibrated 6.5,6.1 -> 6.5: teammate of an absence
+Michael Carter,TEN,CIN,RB,,6.2,1.3,13.1,0.6,1.4,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 6.2,4.9 -> 6.2: teammate of an absence
+Eli Raridon,NE,MIA,TE,,6.0,1.9,16.5,1.3,2.0,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 5.4 -> calibrated 6.0,5.3 -> 6.0: A.J. Brown and Henderson out; NE-MIA total down 2
+Calvin Ridley,TEN,CIN,WR,,5.5,2.0,14.2,0.5,1.2,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 4.7 -> calibrated 5.5,3.8 -> 5.5: teammate of an absence
+Lan Larison,NE,MIA,RB,,4.4,0.8,11.4,0.5,1.3,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 4.6 -> calibrated 4.4,3.8 -> 4.4: A.J. Brown and Henderson out; NE-MIA total down 2
+Gunnar Helm,TEN,CIN,TE,,3.9,1.5,10.4,0.3,0.7,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 3.5 -> calibrated 3.9,3.3 -> 3.9: teammate of an absence
+Kenyon Sadiq,NYJ,LV,TE,,3.8,1.6,11.1,0.3,0.8,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 3.8,3.5 -> 3.8: teammate of an absence
+Isaiah Davis,NYJ,LV,RB,,3.5,0.5,9.5,0.4,1.0,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 3.5,new -> 3.5: teammate of an absence
+Efton Chism III,NE,MIA,WR,,3.4,1.8,11.8,0.3,0.9,,0.98,N,24.25,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.4,new -> 3.4: A.J. Brown and Henderson out; NE-MIA total down 2
+Nicholas Singleton,TEN,CIN,RB,,3.1,0.4,8.5,0.2,0.8,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.1,new -> 3.1: teammate of an absence
+Daniel Bellinger,TEN,CIN,TE,,3.0,1.7,10.0,0.1,0.5,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.0,new -> 3.0: teammate of an absence
+TreVeyon Henderson,NE,MIA,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,24.25,2,OwnModel;nflverse,0.5,OUT - ESPN Week 8 inactives; model 0.0 -> calibrated 0.0,4.4 -> 0.0: OUT
+A.J. Brown,NE,MIA,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,24.25,2,OwnModel;nflverse,0.5,OUT - ESPN Week 8 inactives; model 0.0 -> calibrated 0.0,9.7 -> 0.0: OUT
+Ben Skowronek,PIT,CLE,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,21.0,2,OwnModel;nflverse,0.5,INACTIVE (calf) - Steelers Depot; model 0.0 -> calibrated 0.0,1.1 -> 0.0: INACTIVE
+Breece Hall,NYJ,LV,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,23.5,2,OwnModel;nflverse,0.5,OUT (quad) - CBS inactives tracker; model 0.0 -> calibrated 0.0,9.7 -> 0.0: OUT
+Tyjae Spears,TEN,CIN,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,17.0,2,OwnModel;nflverse,0.5,OUT - CBS inactives tracker; model 0.0 -> calibrated 0.0,4.5 -> 0.0: OUT
+Carnell Tate,TEN,CIN,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,17.0,2,OwnModel;nflverse,0.5,OUT - CBS inactives tracker; model 0.0 -> calibrated 0.0,10.1 -> 0.0: OUT
