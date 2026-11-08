@@ -1,0 +1,2 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes,late_swap_flag,change
+Hunter Henry,NE,GB,TE,,7.4,2.0,16.5,2.5,3.3,,0.98,N,23.75,2,OwnModel;nflverse,0.5,model 6.6 -> calibrated 7.4,LATE SWAP,"7.4 -> 7.4: ACTIVE (foot; limited Friday, may not be 100%)"
