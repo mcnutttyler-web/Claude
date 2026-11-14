@@ -1,0 +1,235 @@
+name,team,opp,pos,salary,median,floor,ceiling,own_cash,own_gpp,status,p_play,late_swap_risk,implied_total,source_count,sources,confidence,notes
+Jacoby Brissett,ARI,LAR,QB,,15.2,7.6,23.7,2.0,2.8,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 15.0 -> calibrated 15.2
+Kendrick Bourne,ARI,LAR,WR,,6.3,2.1,15.0,0.9,1.7,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 5.3 -> calibrated 6.3
+Bam Knight,ARI,LAR,RB,,3.4,0.5,9.1,0.2,0.7,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 3.6 -> calibrated 3.4
+Tyler Allgeier,ARI,LAR,RB,,5.9,1.2,12.8,0.5,1.4,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 6.1 -> calibrated 5.9
+Trey McBride,ARI,LAR,TE,,10.8,3.4,20.6,14.5,11.3,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 10.4 -> calibrated 10.8
+Michael Wilson,ARI,LAR,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,15.0,2,OwnModel;nflverse,0.5,OUT: placed on IR (season) - Rams.com report; model 0.0 -> calibrated 0.0
+Jeremiyah Love,ARI,LAR,RB,,4.5,0.7,10.5,0.3,1.0,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 4.7 -> calibrated 4.5
+Reggie Virgil,ARI,LAR,WR,,3.6,1.8,11.6,0.3,0.8,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 3.0 -> calibrated 3.6
+Harrison Wallace III,ARI,LAR,WR,,4.3,1.8,12.4,0.4,1.0,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 3.6 -> calibrated 4.3
+Zay Jones,ARI,LAR,WR,,3.1,1.8,10.3,0.3,0.7,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 2.6 -> calibrated 3.1
+Trey Benson,ARI,LAR,RB,,6.1,1.4,13.0,0.6,1.4,,0.98,N,15.0,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 6.1
+Olamide Zaccheaus,ATL,KC,WR,,3.6,1.7,12.0,0.4,1.1,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 3.0 -> calibrated 3.6
+Khalil Herbert,ATL,KC,RB,,4.3,0.6,10.6,0.4,1.2,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 4.3
+Kyle Pitts,ATL,KC,TE,,8.1,2.2,17.2,5.3,5.6,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 7.4 -> calibrated 8.1
+Drake London,ATL,KC,WR,,12.4,3.5,25.4,13.0,11.0,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 11.1 -> calibrated 12.4
+Jahan Dotson,ATL,KC,WR,,6.3,2.1,17.5,1.2,2.2,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 5.3 -> calibrated 6.3
+Brian Robinson,ATL,KC,RB,,4.9,0.6,12.1,0.5,1.3,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 5.1 -> calibrated 4.9
+Bijan Robinson,ATL,KC,RB,,17.0,6.3,30.1,39.4,26.3,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 17.8 -> calibrated 17.0
+Michael Penix Jr.,ATL,KC,QB,,14.3,6.9,22.4,2.4,3.2,,0.98,N,22.25,2,OwnModel;nflverse,0.5,model 14.1 -> calibrated 14.3
+DJ Moore,BUF,NYJ,WR,,8.2,2.1,19.3,3.6,4.5,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 6.9 -> calibrated 8.2
+Josh Allen,BUF,NYJ,QB,,21.5,10.8,33.0,15.6,11.6,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 20.6 -> calibrated 21.5
+Ty Johnson,BUF,NYJ,RB,,4.3,1.0,10.8,0.6,1.5,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 4.3
+Dawson Knox,BUF,NYJ,TE,,4.1,1.6,12.0,1.0,1.8,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 4.1
+James Cook,BUF,NYJ,RB,,18.0,6.0,31.9,45.0,30.0,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 18.8 -> calibrated 18.0
+Khalil Shakir,BUF,NYJ,WR,,7.8,2.2,17.6,3.1,4.1,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 6.6 -> calibrated 7.8
+Dalton Kincaid,BUF,NYJ,TE,,7.1,2.1,16.0,4.6,5.1,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 7.1
+Frank Gore Jr.,BUF,NYJ,RB,,3.3,0.4,9.4,0.4,1.2,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 3.5 -> calibrated 3.3
+Keon Coleman,BUF,NYJ,WR,,6.7,2.0,16.5,2.0,3.0,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 5.7 -> calibrated 6.7
+Skyler Bell,BUF,NYJ,WR,,3.2,1.8,11.7,0.5,1.2,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.2
+Gabe Davis,BUF,NYJ,WR,,4.9,1.9,15.4,1.0,1.9,,0.98,N,29.5,2,OwnModel;nflverse,0.5,model 4.1 -> calibrated 4.9
+Darren Waller,CAR,NO,TE,,5.9,1.9,14.4,1.8,2.7,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 5.3 -> calibrated 5.9
+Chuba Hubbard,CAR,NO,RB,,11.5,3.4,21.7,5.8,7.0,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 12.1 -> calibrated 11.5
+Tommy Tremble,CAR,NO,TE,,4.4,1.6,12.3,0.8,1.6,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 3.9 -> calibrated 4.4
+John Metchie III,CAR,NO,WR,,3.7,1.7,11.9,0.5,1.1,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.7
+Bryce Young,CAR,NO,QB,,18.0,9.3,27.5,5.4,5.6,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 17.5 -> calibrated 18.0
+Xavier Legette,CAR,NO,WR,,5.0,1.9,14.4,0.8,1.6,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 4.2 -> calibrated 5.0
+Jonathon Brooks,CAR,NO,RB,,4.4,0.6,10.8,0.5,1.2,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 4.6 -> calibrated 4.4
+Jalen Coker,CAR,NO,WR,,7.8,2.1,17.7,2.3,3.3,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 6.6 -> calibrated 7.8
+Tetairoa McMillan,CAR,NO,WR,,10.4,2.7,22.8,6.2,6.6,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 8.7 -> calibrated 10.4
+Ja'Seem Reed,CAR,NO,WR,,3.6,1.8,12.5,0.4,1.1,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 3.0 -> calibrated 3.6
+Hunter Renfrow,CAR,NO,WR,,4.4,1.8,12.7,0.6,1.3,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 4.4
+Ja'Tavion Sanders,CAR,NO,TE,,3.2,1.5,10.5,0.5,1.0,,0.98,N,23.0,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.2
+Deshaun Watson,CLE,HOU,QB,,16.1,8.2,25.4,2.8,3.6,,0.98,N,18.0,2,OwnModel;nflverse,0.5,Starting QB: Named Week 10 starter over Shedeur Sanders - Browns.com; model 15.8 -> calibrated 16.1
+Jerry Jeudy,CLE,HOU,WR,,4.7,1.9,13.1,0.5,1.2,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 4.0 -> calibrated 4.7
+Dylan Sampson,CLE,HOU,RB,,6.2,1.4,13.1,0.7,1.6,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 6.2
+Raheim Sanders,CLE,HOU,RB,,3.8,0.7,9.6,0.3,0.9,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 3.9 -> calibrated 3.8
+Harold Fannin Jr.,CLE,HOU,TE,,8.0,2.2,16.6,4.1,4.7,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 7.3 -> calibrated 8.0
+Shedeur Sanders,CLE,HOU,QB,,0.0,0.0,0.0,0.0,0.0,NA,0.0,N,18.0,2,OwnModel;nflverse,0.5,Backup: Deshaun Watson starts; model 0.0 -> calibrated 0.0
+Quinshon Judkins,CLE,HOU,RB,,9.0,2.1,17.8,1.9,3.2,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 9.4 -> calibrated 9.0
+Denzel Boston,CLE,HOU,WR,,10.6,2.8,23.5,5.3,6.0,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 8.9 -> calibrated 10.6
+KC Concepcion,CLE,HOU,WR,,8.7,2.3,18.4,2.6,3.6,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 7.3 -> calibrated 8.7
+Trayveon Williams,CLE,HOU,RB,,3.2,0.6,9.0,0.2,0.8,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.2
+Dillon Gabriel,CLE,HOU,QB,,0.0,0.0,0.0,0.0,0.0,NA,0.0,N,18.0,2,OwnModel;nflverse,0.5,Backup: Deshaun Watson starts; model 0.0 -> calibrated 0.0
+Dak Prescott,DAL,SF,QB,,19.4,10.2,29.2,8.3,7.4,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 18.8 -> calibrated 19.4
+CeeDee Lamb,DAL,SF,WR,,18.2,6.3,32.4,45.0,30.0,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 18.8 -> calibrated 18.2
+Javonte Williams,DAL,SF,RB,,14.7,5.1,26.4,20.3,16.6,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 15.4 -> calibrated 14.7
+Tyler Goodson,DAL,SF,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.5,2,OwnModel;nflverse,0.5,OUT (knee) - RotoWire; model 0.0 -> calibrated 0.0
+George Pickens,DAL,SF,WR,,11.9,3.2,25.0,12.4,10.7,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 10.4 -> calibrated 11.9
+KaVontae Turpin,DAL,SF,WR,,3.3,1.3,11.6,0.4,1.1,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 2.8 -> calibrated 3.3
+Jake Ferguson,DAL,SF,TE,,4.3,1.6,12.3,0.9,1.7,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 3.9 -> calibrated 4.3
+Ryan Flournoy,DAL,SF,WR,,8.1,2.1,18.8,2.9,3.9,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 6.8 -> calibrated 8.1
+Brevyn Spann-Ford,DAL,SF,TE,,3.8,1.6,10.3,0.7,1.4,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 3.8
+Camden Brown,DAL,SF,WR,,3.2,1.7,11.3,0.4,1.0,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.2
+Jordan Hudson,DAL,SF,WR,,4.4,1.8,13.1,0.7,1.4,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 4.4
+Miles Sanders,DAL,SF,RB,,5.2,0.8,12.9,0.7,1.6,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.4 -> calibrated 5.2
+Josh Jacobs,GB,MIN,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,22.5,2,OwnModel;nflverse,0.5,OUT (finger) - Packers.com; model 0.0 -> calibrated 0.0
+Jordan Love,GB,MIN,QB,,18.9,9.8,28.4,6.4,6.3,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 18.3 -> calibrated 18.9
+Pierre Strong,GB,MIN,RB,,5.0,0.9,11.4,0.6,1.4,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 5.1 -> calibrated 5.0
+Christian Watson,GB,MIN,WR,,12.5,3.5,26.3,13.6,11.4,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 11.2 -> calibrated 12.5
+Josh Whyle,GB,MIN,TE,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,22.5,2,OwnModel;nflverse,0.5,OUT (concussion) - Packers.com; model 0.0 -> calibrated 0.0
+Chris Brooks,GB,MIN,RB,,3.2,0.4,9.3,0.3,0.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.2
+Tucker Kraft,GB,MIN,TE,,8.2,2.1,17.6,5.7,5.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 7.5 -> calibrated 8.2
+Jayden Reed,GB,MIN,WR,,5.7,1.8,14.5,1.0,1.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.8 -> calibrated 5.7
+MarShawn Lloyd,GB,MIN,RB,,7.3,1.6,14.9,1.3,2.4,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 7.5 -> calibrated 7.3
+Savion Williams,GB,MIN,WR,,4.8,1.3,13.2,0.7,1.5,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.1 -> calibrated 4.8
+Kaleb Johnson,GB,MIN,RB,,3.1,0.3,8.5,0.3,0.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.1
+Coleman Owen,GB,MIN,WR,,3.4,1.8,11.9,0.4,1.0,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 2.8 -> calibrated 3.4
+Matthew Golden,GB,MIN,WR,,13.7,3.9,27.6,21.7,15.8,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 12.8 -> calibrated 13.7
+Dalton Schultz,HOU,CLE,TE,,6.1,1.8,14.0,2.0,2.8,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 5.4 -> calibrated 6.1
+David Montgomery,HOU,CLE,RB,,4.1,0.5,10.3,0.4,1.1,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.2 -> calibrated 4.1
+Nico Collins,HOU,CLE,WR,,8.7,2.3,20.5,3.1,4.1,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 7.3 -> calibrated 8.7
+Kayshon Boutte,HOU,CLE,WR,,5.2,2.0,15.2,0.8,1.6,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 5.2
+Xavier Hutchinson,HOU,CLE,WR,,5.8,1.9,15.0,1.0,1.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.9 -> calibrated 5.8
+Tank Dell,HOU,CLE,WR,,5.9,2.0,15.8,1.1,2.0,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 5.0 -> calibrated 5.9
+C.J. Stroud,HOU,CLE,QB,,17.4,9.0,26.4,4.7,5.0,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 17.0 -> calibrated 17.4
+Jawhar Jordan,HOU,CLE,RB,,4.2,0.6,10.4,0.4,1.1,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.3 -> calibrated 4.2
+Marvin Harrison Jr.,HOU,CLE,WR,,4.4,1.9,13.7,0.6,1.3,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 4.4
+Jaylin Noel,HOU,CLE,WR,,5.1,1.8,15.0,0.8,1.6,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 4.3 -> calibrated 5.1
+Woody Marks,HOU,CLE,RB,,6.2,1.1,13.8,0.9,1.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 6.5 -> calibrated 6.2
+Nick Chubb,HOU,CLE,RB,,3.0,0.4,8.5,0.3,0.9,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.0
+Jayden Higgins,HOU,CLE,WR,,4.1,1.9,12.5,0.5,1.2,,0.98,N,22.5,2,OwnModel;nflverse,0.5,model 3.5 -> calibrated 4.1
+Keenan Allen,IND,MIA,WR,,8.3,2.2,17.7,2.5,3.5,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 7.0 -> calibrated 8.3
+Daniel Jones,IND,MIA,QB,,13.9,6.5,22.2,2.1,2.8,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 13.7 -> calibrated 13.9
+Jonathan Taylor,IND,MIA,RB,,15.1,5.0,27.2,18.9,15.8,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 15.8 -> calibrated 15.1
+Alec Pierce,IND,MIA,WR,,6.4,2.1,16.3,1.2,2.1,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 5.4 -> calibrated 6.4
+Josh Downs,IND,MIA,WR,,6.8,2.0,15.7,1.4,2.4,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 5.8 -> calibrated 6.8
+Tyler Warren,IND,MIA,TE,,8.3,2.3,16.7,5.5,5.8,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 7.6 -> calibrated 8.3
+Seth McGowan,IND,MIA,RB,,4.4,0.6,11.2,0.4,1.1,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 4.6 -> calibrated 4.4
+Darius Slayton,IND,MIA,WR,,5.2,1.9,13.6,0.8,1.6,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 5.2
+Jakobi Meyers,JAX,TEN,WR,,9.2,2.4,21.2,5.0,5.7,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 7.8 -> calibrated 9.2
+Trevor Lawrence,JAX,TEN,QB,,16.9,8.5,25.9,5.6,5.7,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 16.5 -> calibrated 16.9
+Parker Washington,JAX,TEN,WR,,10.4,2.5,23.1,8.0,7.9,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 8.8 -> calibrated 10.4
+Chris Rodriguez Jr.,JAX,TEN,RB,,7.0,1.0,15.5,1.5,2.8,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 7.2 -> calibrated 7.0
+Brenton Strange,JAX,TEN,TE,,6.5,1.9,14.7,3.2,4.0,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 5.8 -> calibrated 6.5
+Brian Thomas Jr.,JAX,TEN,WR,,4.3,1.9,15.0,0.8,1.6,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 3.7 -> calibrated 4.3
+Travis Hunter,JAX,TEN,WR,,3.1,1.5,11.3,0.5,1.1,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.1
+Bhayshul Tuten,JAX,TEN,RB,,11.9,3.3,23.2,8.7,9.2,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 12.5 -> calibrated 11.9
+Josh Cameron,JAX,TEN,WR,,3.3,1.8,12.3,0.5,1.2,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 2.8 -> calibrated 3.3
+C.J. Williams,JAX,TEN,WR,,3.4,1.8,12.3,0.5,1.2,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.4
+Nate Boerkircher,JAX,TEN,TE,,3.7,1.8,12.2,0.8,1.5,,0.98,N,28.5,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.7
+Travis Kelce,KC,ATL,TE,,8.2,2.2,17.3,6.5,6.5,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 7.5 -> calibrated 8.2
+Patrick Mahomes,KC,ATL,QB,,18.7,9.4,28.7,7.0,6.7,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 18.2 -> calibrated 18.7
+Tyquan Thornton,KC,ATL,WR,,6.6,2.2,18.7,1.6,2.6,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 5.6 -> calibrated 6.6
+Kenneth Walker III,KC,ATL,RB,,11.6,4.7,34.0,4.4,5.1,Q,0.65,Y,25.25,2,OwnModel;nflverse,0.5,Q (new groin injury) - CBS; model 12.1 -> calibrated 11.6
+Rashee Rice,KC,ATL,WR,,9.6,2.5,21.0,5.1,5.8,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 8.1 -> calibrated 9.6
+Xavier Worthy,KC,ATL,WR,,7.8,2.1,17.4,2.5,3.6,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 6.6 -> calibrated 7.8
+Jaydn Ott,KC,ATL,RB,,3.3,0.4,8.9,0.4,1.0,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 3.3
+Emmett Johnson,KC,ATL,RB,,3.9,0.5,10.5,0.4,1.2,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 4.0 -> calibrated 3.9
+JuJu Smith-Schuster,KC,ATL,WR,,3.5,1.7,11.6,0.5,1.1,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.5
+Kareem Hunt,KC,ATL,RB,,5.3,0.5,12.8,0.7,1.6,,0.98,N,25.25,2,OwnModel;nflverse,0.5,model 5.5 -> calibrated 5.3
+Matthew Stafford,LAR,ARI,QB,,17.2,8.8,26.1,4.9,5.2,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 16.8 -> calibrated 17.2
+Davante Adams,LAR,ARI,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,24.5,2,OwnModel;nflverse,0.5,OUT: IR (ruptured hamstring) since Week 7; model 0.0 -> calibrated 0.0
+Tyler Higbee,LAR,ARI,TE,,5.8,1.8,13.7,1.9,2.7,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 5.2 -> calibrated 5.8
+Colby Parkinson,LAR,ARI,TE,,7.2,1.9,16.8,3.8,4.4,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 6.5 -> calibrated 7.2
+Tutu Atwell,LAR,ARI,WR,,3.8,2.0,12.3,0.5,1.2,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.8
+Kyren Williams,LAR,ARI,RB,,15.2,5.0,27.6,23.1,18.2,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 15.9 -> calibrated 15.2
+Davis Allen,LAR,ARI,TE,,3.2,1.5,11.2,0.5,1.1,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.2
+Puka Nacua,LAR,ARI,WR,,22.2,8.9,37.4,45.0,30.0,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 23.1 -> calibrated 22.2
+Blake Corum,LAR,ARI,RB,,8.2,1.7,17.9,1.9,3.3,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 8.5 -> calibrated 8.2
+Konata Mumpfield,LAR,ARI,WR,,3.4,1.8,12.5,0.4,1.1,,0.98,N,24.5,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.4
+Terrance Ferguson,LAR,ARI,TE,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,24.5,2,OwnModel;nflverse,0.5,OUT (ankle/hamstring) - Rams.com; model 0.0 -> calibrated 0.0
+Kirk Cousins,LV,SEA,QB,,15.7,7.8,24.3,2.5,3.3,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 15.5 -> calibrated 15.7
+Cody White,LV,SEA,WR,,3.9,1.9,13.8,0.4,1.0,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.9
+Jalen Nailor,LV,SEA,WR,,4.5,1.9,13.0,0.5,1.1,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 3.8 -> calibrated 4.5
+Tre Tucker,LV,SEA,WR,,8.9,2.3,20.9,2.6,3.7,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 7.5 -> calibrated 8.9
+Michael Mayer,LV,SEA,TE,,5.9,1.8,13.4,1.3,2.2,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 5.3 -> calibrated 5.9
+Brock Bowers,LV,SEA,TE,,11.6,3.5,22.7,24.1,16.1,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 11.2 -> calibrated 11.6
+Ashton Jeanty,LV,SEA,RB,,10.3,3.2,19.1,2.9,4.3,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 10.7 -> calibrated 10.3
+Mike Washington Jr.,LV,SEA,RB,,4.2,0.7,9.6,0.3,1.0,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 4.2
+Tyler Lockett,LV,SEA,WR,,3.6,1.7,10.6,0.3,0.9,,0.98,N,17.0,2,OwnModel;nflverse,0.5,model 3.0 -> calibrated 3.6
+Greg Dulcich,MIA,IND,TE,,4.9,1.8,12.2,0.8,1.6,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 4.4 -> calibrated 4.9
+Kyle McCord,MIA,IND,QB,,12.8,5.8,20.5,1.4,2.2,,0.98,N,17.5,2,OwnModel;nflverse,0.5,First NFL start (Willis on IR); projected with Willis's profile - low confidence; model 12.6 -> calibrated 12.8
+De'Von Achane,MIA,IND,RB,,8.6,2.1,17.2,1.6,2.9,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 9.0 -> calibrated 8.6
+Malik Washington,MIA,IND,WR,,6.8,1.8,16.5,1.2,2.1,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 5.7 -> calibrated 6.8
+Ollie Gordon II,MIA,IND,RB,,5.4,1.0,12.3,0.5,1.3,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 5.6 -> calibrated 5.4
+Caleb Douglas,MIA,IND,WR,,6.5,2.1,16.2,1.1,2.0,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 5.5 -> calibrated 6.5
+Chris Bell,MIA,IND,WR,,3.1,1.7,10.8,0.3,0.8,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 2.6 -> calibrated 3.1
+Tyreek Hill,MIA,IND,WR,,5.8,2.0,14.1,0.8,1.6,,0.98,N,17.5,2,OwnModel;nflverse,0.5,model 4.9 -> calibrated 5.8
+Carson Wentz,MIN,GB,QB,,13.3,6.3,21.0,1.7,2.5,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 13.1 -> calibrated 13.3
+Aaron Jones,MIN,GB,RB,,8.3,1.9,16.8,1.6,2.9,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 8.6 -> calibrated 8.3
+Kyler Murray,MIN,GB,QB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,20.0,2,OwnModel;nflverse,0.5,"OUT (hamstring) - Yahoo Vikings report, Packers.com; model 0.0 -> calibrated 0.0"
+T.J. Hockenson,MIN,GB,TE,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,20.0,2,OwnModel;nflverse,0.5,OUT (chest/wrist) - Yahoo Vikings report; model 0.0 -> calibrated 0.0
+Josh Oliver,MIN,GB,TE,,4.4,1.6,11.1,0.7,1.4,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 3.9 -> calibrated 4.4
+Jauan Jennings,MIN,GB,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,20.0,2,OwnModel;nflverse,0.5,OUT (calf) - Yahoo Vikings report; model 0.0 -> calibrated 0.0
+Justin Jefferson,MIN,GB,WR,,12.5,3.6,24.3,12.1,10.6,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 11.3 -> calibrated 12.5
+Jordan Mason,MIN,GB,RB,,7.5,1.2,16.1,1.2,2.4,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 7.7 -> calibrated 7.5
+Jordan Addison,MIN,GB,WR,,7.8,3.1,25.6,1.4,2.1,Q,0.7,Y,20.0,2,OwnModel;nflverse,0.5,Q (thumb) - Yahoo Vikings report; model 6.6 -> calibrated 7.8
+Jeshaun Jones,MIN,GB,WR,,4.0,1.8,13.1,0.5,1.1,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 4.0
+Gavin Bartholomew,MIN,GB,TE,,3.8,1.5,9.5,0.5,1.2,,0.98,N,20.0,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 3.8
+Alvin Kamara,NO,CAR,RB,,6.8,1.5,14.4,1.2,2.4,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 7.1 -> calibrated 6.8
+Juwan Johnson,NO,CAR,TE,,5.8,1.9,14.6,1.9,2.8,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.2 -> calibrated 5.8
+Travis Etienne,NO,CAR,RB,,7.8,1.6,16.1,1.8,3.1,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 8.0 -> calibrated 7.8
+Chris Olave,NO,CAR,WR,,12.2,3.4,25.1,14.0,11.6,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 10.9 -> calibrated 12.2
+Kendre Miller,NO,CAR,RB,,5.0,0.8,11.6,0.7,1.5,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.2 -> calibrated 5.0
+Audric Estime,NO,CAR,RB,,5.1,0.7,12.1,0.7,1.6,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.3 -> calibrated 5.1
+Devaughn Vele,NO,CAR,WR,,6.8,2.0,16.5,1.7,2.7,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.8 -> calibrated 6.8
+Tyler Shough,NO,CAR,QB,,18.6,9.7,28.5,7.0,6.6,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 18.1 -> calibrated 18.6
+Jordyn Tyson,NO,CAR,WR,,6.0,1.9,15.7,1.3,2.2,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 5.1 -> calibrated 6.0
+Bryce Lance,NO,CAR,WR,,3.2,1.8,12.1,0.4,1.0,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.2
+Barion Brown,NO,CAR,WR,,3.3,1.8,12.3,0.4,1.1,,0.98,N,25.5,2,OwnModel;nflverse,0.5,model 2.8 -> calibrated 3.3
+CJ Donaldson,NO,CAR,RB,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,25.5,2,OwnModel;nflverse,0.5,OUT (shoulder) - Fantasy Six Pack; model 0.0 -> calibrated 0.0
+Geno Smith,NYJ,BUF,QB,,14.9,7.3,23.2,2.5,3.3,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 14.7 -> calibrated 14.9
+Sterling Shepard,NYJ,BUF,WR,,4.0,1.7,13.1,0.5,1.1,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 3.4 -> calibrated 4.0
+Garrett Wilson,NYJ,BUF,WR,,10.0,2.7,20.9,4.8,5.6,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 8.4 -> calibrated 10.0
+Breece Hall,NYJ,BUF,RB,,9.1,2.3,17.9,2.3,3.6,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 9.5 -> calibrated 9.1
+Braelon Allen,NYJ,BUF,RB,,8.6,1.9,17.5,1.9,3.2,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 8.9 -> calibrated 8.6
+Adonai Mitchell,NYJ,BUF,WR,,7.1,2.1,18.2,1.6,2.6,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 6.0 -> calibrated 7.1
+Mason Taylor,NYJ,BUF,TE,,4.4,1.6,11.6,0.8,1.5,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 3.9 -> calibrated 4.4
+Kenyon Sadiq,NYJ,BUF,TE,,3.7,1.6,10.8,0.5,1.2,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.7
+Omar Cooper Jr.,NYJ,BUF,WR,,6.8,2.1,16.6,1.4,2.4,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 5.7 -> calibrated 6.8
+Josh Reynolds,NYJ,BUF,WR,,4.2,1.8,11.5,0.5,1.2,,0.98,N,21.0,2,OwnModel;nflverse,0.5,model 3.5 -> calibrated 4.2
+Cooper Kupp,SEA,LV,WR,,5.4,1.8,14.4,0.9,1.8,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 4.5 -> calibrated 5.4
+Sam Darnold,SEA,LV,QB,,0.0,0.0,0.0,0.0,0.0,NA,0.0,N,23.5,2,OwnModel;nflverse,0.5,Backup: Drew Lock starts; model 0.0 -> calibrated 0.0
+Drew Lock,SEA,LV,QB,,15.1,7.9,23.5,3.0,3.7,,0.98,N,23.5,2,OwnModel;nflverse,0.5,"Starting QB: Off the injury report, starts - ESPN; model 14.8 -> calibrated 15.1"
+Rashid Shaheed,SEA,LV,WR,,6.0,1.8,14.9,1.2,2.1,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 5.1 -> calibrated 6.0
+Jaxon Smith-Njigba,SEA,LV,WR,,15.4,4.9,29.0,43.7,25.6,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 15.2 -> calibrated 15.4
+Emanuel Wilson,SEA,LV,RB,,7.2,1.5,15.2,1.3,2.5,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 7.4 -> calibrated 7.2
+Zach Charbonnet,SEA,LV,RB,,7.4,1.4,15.8,1.4,2.6,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 7.6 -> calibrated 7.4
+AJ Barner,SEA,LV,TE,,7.8,1.8,17.9,4.9,5.3,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 7.1 -> calibrated 7.8
+Montorie Foster Jr,SEA,LV,WR,,3.4,1.7,11.5,0.4,1.0,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 2.9 -> calibrated 3.4
+Tory Horton,SEA,LV,WR,,3.6,1.7,11.7,0.5,1.1,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 3.0 -> calibrated 3.6
+Jadarian Price,SEA,LV,RB,,6.2,1.3,13.3,0.9,1.9,,0.98,N,23.5,2,OwnModel;nflverse,0.5,model 6.4 -> calibrated 6.2
+Mike Evans,SF,DAL,WR,,0.0,0.0,0.0,0.0,0.0,O,0.0,N,30.0,2,OwnModel;nflverse,0.5,OUT (Achilles) - Yahoo 49ers report; model 0.0 -> calibrated 0.0
+Demarcus Robinson,SF,DAL,WR,,4.7,1.8,13.9,1.0,1.8,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 4.0 -> calibrated 4.7
+Christian McCaffrey,SF,DAL,RB,,14.9,4.6,27.1,27.0,20.2,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 15.6 -> calibrated 14.9
+George Kittle,SF,DAL,TE,,9.9,2.6,20.6,19.6,13.9,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 9.4 -> calibrated 9.9
+Christian Kirk,SF,DAL,WR,,3.2,1.6,11.6,0.5,1.2,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 2.7 -> calibrated 3.2
+Deebo Samuel Sr.,SF,DAL,WR,,8.7,1.9,19.9,4.5,5.3,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 7.4 -> calibrated 8.7
+Brock Purdy,SF,DAL,QB,,20.5,10.8,30.9,13.0,10.2,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 19.8 -> calibrated 20.5
+Jordan Watkins,SF,DAL,WR,,3.8,1.9,12.9,0.7,1.4,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.8
+Jordan James,SF,DAL,RB,,3.0,0.4,8.8,0.4,1.1,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 3.2 -> calibrated 3.0
+De'Zhaun Stribling,SF,DAL,WR,,3.1,1.8,11.8,0.5,1.2,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 2.6 -> calibrated 3.1
+Kaelon Black,SF,DAL,RB,,5.2,0.7,12.6,0.9,1.9,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 5.4 -> calibrated 5.2
+Ricky Pearsall,SF,DAL,WR,,6.5,2.0,16.0,1.9,2.9,,0.98,N,30.0,2,OwnModel;nflverse,0.5,model 5.5 -> calibrated 6.5
+Calvin Ridley,TEN,JAX,WR,,3.9,1.9,12.4,0.4,1.0,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 3.3 -> calibrated 3.9
+Tony Pollard,TEN,JAX,RB,,9.8,2.7,19.0,2.5,3.9,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 10.2 -> calibrated 9.8
+Michael Carter,TEN,JAX,RB,,4.1,0.6,10.1,0.3,1.0,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 4.3 -> calibrated 4.1
+Wan'Dale Robinson,TEN,JAX,WR,,10.3,2.8,20.9,4.7,5.5,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 8.7 -> calibrated 10.3
+Tyjae Spears,TEN,JAX,RB,,4.7,1.2,10.6,0.4,1.1,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 4.9 -> calibrated 4.7
+Elic Ayomanor,TEN,JAX,WR,,5.9,2.0,15.9,0.9,1.7,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 5.0 -> calibrated 5.9
+Gunnar Helm,TEN,JAX,TE,,4.6,1.6,11.1,0.7,1.4,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 4.1 -> calibrated 4.6
+Cam Ward,TEN,JAX,QB,,13.5,6.4,21.6,1.6,2.4,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 13.3 -> calibrated 13.5
+Chimere Dike,TEN,JAX,WR,,3.3,1.6,11.1,0.3,0.8,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 2.8 -> calibrated 3.3
+Carnell Tate,TEN,JAX,WR,,10.5,3.0,21.7,5.1,5.8,,0.98,N,18.0,2,OwnModel;nflverse,0.5,model 8.9 -> calibrated 10.5
+Cardinals,ARI,LAR,DST,,5.8,1.0,12.0,1.1,2.1,,1.0,N,15.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Falcons,ATL,KC,DST,,5.5,0.0,12.0,1.0,2.0,,1.0,N,22.25,1,GameSim,0.4,game-sim mean vs opposing offense
+Bills,BUF,NYJ,DST,,6.3,1.0,12.0,3.9,5.1,,1.0,N,29.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Panthers,CAR,NO,DST,,5.4,0.0,12.0,0.9,1.9,,1.0,N,23.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Browns,CLE,HOU,DST,,5.4,1.0,11.0,0.7,1.6,,1.0,N,18.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Cowboys,DAL,SF,DST,,4.6,-1.0,11.0,0.4,1.0,,1.0,N,25.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Packers,GB,MIN,DST,,6.4,1.0,13.0,3.2,4.4,,1.0,N,22.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Texans,HOU,CLE,DST,,6.8,2.0,13.0,5.2,6.2,,1.0,N,22.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Colts,IND,MIA,DST,,6.3,1.0,12.0,2.6,3.9,,1.0,N,21.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Jaguars,JAX,TEN,DST,,6.9,2.0,13.0,7.8,8.2,,1.0,N,28.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Chiefs,KC,ATL,DST,,5.7,1.0,12.0,1.5,2.6,,1.0,N,25.25,1,GameSim,0.4,game-sim mean vs opposing offense
+Rams,LAR,ARI,DST,,8.9,3.0,16.0,45.0,30.0,,1.0,N,24.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Raiders,LV,SEA,DST,,4.8,0.0,11.0,0.3,0.9,,1.0,N,17.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Dolphins,MIA,IND,DST,,6.5,1.0,13.0,2.9,4.1,,1.0,N,17.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Vikings,MIN,GB,DST,,6.1,1.0,12.0,2.0,3.2,,1.0,N,20.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Saints,NO,CAR,DST,,6.5,1.0,13.0,4.1,5.3,,1.0,N,25.5,1,GameSim,0.4,game-sim mean vs opposing offense
+Jets,NYJ,BUF,DST,,4.4,-1.0,10.0,0.2,0.8,,1.0,N,21.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Seahawks,SEA,LV,DST,,7.6,2.0,14.0,14.8,12.8,,1.0,N,23.5,1,GameSim,0.4,game-sim mean vs opposing offense
+49ers,SF,DAL,DST,,5.8,1.0,12.0,2.1,3.4,,1.0,N,30.0,1,GameSim,0.4,game-sim mean vs opposing offense
+Titans,TEN,JAX,DST,,3.8,-1.0,10.0,0.1,0.4,,1.0,N,18.0,1,GameSim,0.4,game-sim mean vs opposing offense

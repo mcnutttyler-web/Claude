@@ -1,0 +1,21 @@
+team,opp,home_away,kickoff_et,spread,total,implied_total,wind_mph,precip,dome,notes
+KC,ATL,away,2026-11-15 1:00 PM,-3.0,47.5,25.25,,,N,nflverse games.csv line
+ATL,KC,home,2026-11-15 1:00 PM,3.0,47.5,22.25,,,N,nflverse games.csv line
+HOU,CLE,away,2026-11-15 1:00 PM,-4.5,40.5,22.5,,,N,nflverse games.csv line
+CLE,HOU,home,2026-11-15 1:00 PM,4.5,40.5,18.0,,,N,nflverse games.csv line
+GB,MIN,home,2026-11-15 1:00 PM,-2.5,42.5,22.5,,,N,nflverse games.csv line
+MIN,GB,away,2026-11-15 1:00 PM,2.5,42.5,20.0,,,N,nflverse games.csv line
+IND,MIA,home,2026-11-15 1:00 PM,-3.5,38.5,21.0,,,N,nflverse games.csv line
+MIA,IND,away,2026-11-15 1:00 PM,3.5,38.5,17.5,,,N,nflverse games.csv line
+NO,CAR,home,2026-11-15 1:00 PM,-2.5,48.5,25.5,,,Y,nflverse games.csv line
+CAR,NO,away,2026-11-15 1:00 PM,2.5,48.5,23.0,,,Y,nflverse games.csv line
+BUF,NYJ,away,2026-11-15 1:00 PM,-8.5,50.5,29.5,,,N,nflverse games.csv line
+NYJ,BUF,home,2026-11-15 1:00 PM,8.5,50.5,21.0,,,N,nflverse games.csv line
+JAX,TEN,away,2026-11-15 1:00 PM,-10.5,46.5,28.5,,,N,nflverse games.csv line
+TEN,JAX,home,2026-11-15 1:00 PM,10.5,46.5,18.0,,,N,nflverse games.csv line
+LAR,ARI,away,2026-11-15 4:05 PM,-9.5,39.5,24.5,,,N,nflverse games.csv line
+ARI,LAR,home,2026-11-15 4:05 PM,9.5,39.5,15.0,,,N,nflverse games.csv line
+SEA,LV,away,2026-11-15 4:05 PM,-6.5,40.5,23.5,,,Y,nflverse games.csv line
+LV,SEA,home,2026-11-15 4:05 PM,6.5,40.5,17.0,,,Y,nflverse games.csv line
+SF,DAL,away,2026-11-15 4:25 PM,-4.5,55.5,30.0,,,N,nflverse games.csv line
+DAL,SF,home,2026-11-15 4:25 PM,4.5,55.5,25.5,,,N,nflverse games.csv line
